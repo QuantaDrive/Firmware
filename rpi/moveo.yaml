@@ -1,12 +1,27 @@
 
 steppers:
   - steps_per_mm: 1
+    microsteps: 32
     driver:
       step_pin: 10
-      direction_pin: 12
+      direction_pin: 21
 
   - steps_per_mm: 1
+    microsteps: 32
     driver:
       type: GENERIC
       step_pin: 11
-      direction_pin: 13
+      direction_pin: 20
+
+  - steps_per_mm: 1
+    microsteps: 32
+    driver:
+      step_pin: 12
+      direction_pin: ~19
+
+  - steps_per_mm: 1
+    microsteps: 32
+    driver:
+      type: GENERIC
+      step_pin: 13
+      direction_pin: 18

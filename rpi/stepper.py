@@ -1,7 +1,7 @@
 from enum import IntEnum
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, PositiveFloat, field_validator
+from pydantic import BaseModel, Field, PositiveFloat, field_validator, PositiveInt
 
 from gpio import Gpio, Direction
 
@@ -68,6 +68,7 @@ class Driver(BaseModel):
 class Stepper(BaseModel):
     driver: Driver
     steps_per_mm: PositiveFloat = Field(default=200)
+    microsteps: PositiveInt = Field(default=1)
     current_position: float = 0
 
     def get_config(self, stepper_id: int) -> List[bytearray]:
@@ -77,13 +78,13 @@ class Stepper(BaseModel):
         if relative:
             new_position += self.current_position
         delta_position = new_position - self.current_position
-        delta_steps = round(delta_position * self.steps_per_mm)
+        delta_steps = round(delta_position * self.steps_per_mm * self.microsteps)
         if delta_steps == 0:
             return bytearray([0, 0, 0, 0, 0])
         steps_per_second = delta_steps / time
         ticks_per_step = 50000 / steps_per_second
         move_data: bytearray = bytearray()
-        move_data += int(new_position).to_bytes(2, "big")
+        move_data += int(new_position * self.steps_per_mm * self.microsteps).to_bytes(2, "big")
         move_data += int(ticks_per_step).to_bytes(3, "big")
         self.current_position = new_position
         return move_data
