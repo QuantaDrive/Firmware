@@ -44,15 +44,15 @@ def forward_kinematics(theta1, theta2, theta3, theta4, theta5, theta6, dh_params
     j6_dh_matrix = dh_transformation_matrix(theta6 + dh_params[5, 0], dh_params[5, 1], dh_params[5, 2], dh_params[5, 3], sympy=True)
     final_matrix = j1_dh_matrix * j2_dh_matrix * j3_dh_matrix * j4_dh_matrix * j5_dh_matrix * j6_dh_matrix * toolframe_matrix
     coordinates = [
-        final_matrix[0, 3],
-        final_matrix[1, 3],
-        final_matrix[2, 3]
+        float(final_matrix[0, 3]),
+        float(final_matrix[1, 3]),
+        float(final_matrix[2, 3])
     ]
     pitch = sp.atan2(-final_matrix[2, 0], sp.sqrt(final_matrix[2, 2] ** 2 + final_matrix[2, 1] ** 2)).evalf()
     orientation = [
-        sp.atan2(final_matrix[1, 0] / sp.cos(pitch), final_matrix[0, 0] / sp.cos(pitch)),
-        pitch,
-        sp.atan2(final_matrix[2, 1] / sp.cos(pitch), final_matrix[2, 2] / sp.cos(pitch))
+        float(sp.atan2(final_matrix[1, 0] / sp.cos(pitch), final_matrix[0, 0] / sp.cos(pitch))),
+        float(pitch),
+        float(sp.atan2(final_matrix[2, 1] / sp.cos(pitch), final_matrix[2, 2] / sp.cos(pitch)))
     ]
     return coordinates, orientation
 
@@ -111,27 +111,27 @@ def inverse_kinematics(x, y, z, yaw, pitch, roll, dh_params, toolframe_matrix=np
     return j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle
 
 dh_params = np.matrix([
-    [  0.0,  90.0, 231.5,   0.0],
+    [  180,  90.0, 231.5,   0.0],
     [ 90.0,   0.0,   0.0, 221.0],
     [-90.0, -90.0,   0.0,   0.0],
     [  0.0,  90.0, 224.5,   0.0],
     [  0.0, -90.0,   0.0,   0.0],
-    [  0.0,   0.0,  77.0,   0.0]
+    [  180,   0.0,  77.0,   0.0]
 ])
 
 toolframe_matrix = transformation_matrix(0, 0, 0, 0, 0, 0)
 
 coordinates, orientation = forward_kinematics(0, 30, 0, 0, 0, 0, dh_params, toolframe_matrix)
-print("x: " + str(coordinates[0].evalf()))
-print("y: " + str(coordinates[1].evalf()))
-print("z: " + str(coordinates[2].evalf()))
-print("yaw: " + str(sp.deg(orientation[0]).evalf()))
-print("pitch: " + str(sp.deg(orientation[1]).evalf()))
-print("roll: " + str(sp.deg(orientation[2]).evalf()))
+print("x: " + str(coordinates[0]))
+print("y: " + str(coordinates[1]))
+print("z: " + str(coordinates[2]))
+print("yaw: " + str(np.degrees(orientation[0])))
+print("pitch: " + str(np.degrees(orientation[1])))
+print("roll: " + str(np.degrees(orientation[2])))
 print()
 
-# j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = inverse_kinematics(coordinates[0], coordinates[1], coordinates[2], sp.deg(orientation[0]), sp.deg(orientation[1]), sp.deg(orientation[2]), dh_params, toolframe_matrix)
-j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = inverse_kinematics(457.7706, 0, 387.7706, -90, -90, -90, dh_params, toolframe_matrix)
+j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = inverse_kinematics(coordinates[0], coordinates[1], coordinates[2], np.degrees(orientation[0]), np.degrees(orientation[1]), np.degrees(orientation[2]), dh_params, toolframe_matrix)
+#j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = inverse_kinematics(457.7706, 0, 387.7706, -90, -90, -90, dh_params, toolframe_matrix)
 print("j1_angle: " + str(np.degrees(j1_angle)))
 print("j2_angle: " + str(np.degrees(j2_angle)))
 print("j3_angle: " + str(np.degrees(j3_angle)))
