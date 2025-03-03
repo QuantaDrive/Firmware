@@ -1,0 +1,12 @@
+
+steppers:
+  - steps_per_mm: 1
+    driver:
+      step_pin: 10
+      direction_pin: 12
+
+  - steps_per_mm: 1
+    driver:
+      type: GENERIC
+      step_pin: 11
+      direction_pin: 13
