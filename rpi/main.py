@@ -12,7 +12,7 @@ controller.reset()
 controller.send_config()
 
 distance = 4
-for i in range(4):
+for i in range(5):
     controller.move_stepper(i, 200, 5, relative=True)
 input("Press enter to emergency stop")
 controller.force_stop()

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 
 import yaml
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import serial
 from pydantic import BaseModel, Field, PrivateAttr
@@ -27,8 +27,26 @@ class Controller(BaseModel):
     steppers: Optional[List[Stepper]] = Field(default=None)
     gpios: Optional[List[Gpio]] = Field(default=None)
 
+    start_velocity: float = Field(default=1)     # mm per second
+    max_velocity: float = Field(default=50)      # mm per second
+    max_accel: float = Field(default=10)         # mm per second^2
+
     _command_queue: queue.PriorityQueue = PrivateAttr()
     _move_queue: queue.Queue = PrivateAttr()
+    _coordinates: Tuple[float] = PrivateAttr()
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        for stepper in self.steppers:
+            stepper.max_velocity = self.max_velocity
+
+    @property
+    def coordinates(self):
+        return self._coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
+        self._coordinates = coordinates
 
     def find_device(self):
         devices = []

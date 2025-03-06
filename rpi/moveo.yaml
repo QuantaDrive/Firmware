@@ -1,5 +1,14 @@
+max_velocity: 10
+max_accel: 10
+
 
 steppers:
+  - steps_per_mm: 1
+    microsteps: 32
+    driver:
+      step_pin: 14
+      direction_pin: 15
+
   - steps_per_mm: 1
     microsteps: 32
     driver:

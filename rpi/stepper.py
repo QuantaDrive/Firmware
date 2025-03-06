@@ -71,6 +71,18 @@ class Stepper(BaseModel):
     microsteps: PositiveInt = Field(default=1)
     current_position: float = 0
 
+    def __init__(self, max_velocity: float = 10, **data):
+        super().__init__(**data)
+        self.max_velocity = max_velocity * self.steps_per_mm
+
+    @property
+    def max_velocity(self):
+        return self._max_velocity
+
+    @max_velocity.setter
+    def max_velocity(self, value):
+        self._max_velocity = value * self.steps_per_mm
+
     def get_config(self, stepper_id: int) -> List[bytearray]:
         return self.driver.get_config(stepper_id)
 
@@ -82,6 +94,8 @@ class Stepper(BaseModel):
         if delta_steps == 0:
             return bytearray([0, 0, 0, 0, 0])
         steps_per_second = delta_steps / time
+        if steps_per_second > self.max_velocity:
+            raise ValueError("Velocity too high")
         ticks_per_step = 50000 / steps_per_second
         move_data: bytearray = bytearray()
         move_data += int(new_position * self.steps_per_mm * self.microsteps).to_bytes(2, "big")
