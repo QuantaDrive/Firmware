@@ -1,24 +1,70 @@
 import time
 
-import controller
+import numpy as np
 
-speed = 10          # mm per second
-max_speed = 600     # mm per second
-acceleration = 50   # mm per second^2
+from planner import Planner
+from controller import Controller
 
-controller = controller.load_controller_config("moveo.yaml")
+controller = Controller.from_config("moveo.yaml")
 controller.connect()
 controller.reset()
 controller.send_config()
 
-distance = 4
-for i in range(5):
-    controller.move_stepper(i, 200, 5, relative=True)
-input("Press enter to emergency stop")
-controller.force_stop()
-time.sleep(1)
+input("Bring the arm manually to the home position and press enter to start")
+for i in range(6):
+    controller.set_homed(i)
+    controller.set_position(i, 0)
+
+planner = Planner(controller)
+
+time.sleep(5)
+print("Start")
+
+# cur_speed = controller.start_velocity
+# degrees = 0
 # while True:
-#     time_to_move = distance / speed
-#     speed += acceleration * time_to_move
-#     speed = min(max_speed, speed)
-#     controller.move_steppers([1, 2, 3, distance], time_to_move, relative=True)
+#     degrees += 0.5
+#     time_to_move = 0.5 / cur_speed
+#     cur_speed += controller.max_accel * time_to_move
+#     cur_speed = min(2, cur_speed)
+#     controller.move_steppers([0, degrees, degrees, 0, 0, 0], time_to_move)
+#     if degrees >= 45:
+#         break
+#
+# while True:
+#     degrees -= 0.5
+#     time_to_move = 0.5 / cur_speed
+#     cur_speed += controller.max_accel * time_to_move
+#     cur_speed = min(2, cur_speed)
+#     controller.move_steppers([0, degrees, degrees, 0, 0, 0], time_to_move)
+#     if degrees <= 0:
+#         break
+#
+# cur_speed = controller.start_velocity
+# degrees = 0
+# for i in [3, 4, 5]:
+#     while True:
+#         degrees += 0.5
+#         time_to_move = 0.5 / cur_speed
+#         cur_speed += controller.max_accel * time_to_move
+#         cur_speed = min(controller.max_velocity, cur_speed)
+#         controller.move_stepper(i, degrees, time_to_move)
+#         if degrees >= 90:
+#             break
+#
+#     while True:
+#         degrees -= 0.5
+#         time_to_move = 0.5 / cur_speed
+#         cur_speed += controller.max_accel * time_to_move
+#         cur_speed = min(controller.max_velocity, cur_speed)
+#         controller.move_stepper(i, degrees, time_to_move)
+#         if degrees <= 0:
+#             break
+
+
+planner.plan_move((301.5, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+
+
+while True:
+    time.sleep(0.5)

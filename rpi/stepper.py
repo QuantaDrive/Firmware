@@ -1,7 +1,9 @@
 from enum import IntEnum
+from functools import cached_property
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, PositiveFloat, field_validator, PositiveInt
+import numpy as np
+from pydantic import BaseModel, Field, PositiveFloat, field_validator, PositiveInt, computed_field, PrivateAttr
 
 from gpio import Gpio, Direction
 
@@ -69,36 +71,63 @@ class Stepper(BaseModel):
     driver: Driver
     steps_per_mm: PositiveFloat = Field(default=200)
     microsteps: PositiveInt = Field(default=1)
-    current_position: float = 0
+    min_position: float = Field(default=0)
+    max_position: float = Field(default=np.inf)
 
-    def __init__(self, max_velocity: float = 10, **data):
+    _current_position: float = PrivateAttr(default=0)
+    _max_velocity_steps: float = PrivateAttr(default=np.inf)
+
+    def __init__(self, **data):
         super().__init__(**data)
-        self.max_velocity = max_velocity * self.steps_per_mm
 
+    @computed_field(return_type=int)
+    @cached_property
+    def min_position_steps(self):
+        return int(self.min_position * self.steps_per_mm * self.microsteps)
+
+    @computed_field(return_type=int)
+    @cached_property
+    def max_position_steps(self):
+        if self.max_position == np.inf:
+            return np.inf
+        return int(self.max_position * self.steps_per_mm * self.microsteps)
+
+    # @computed_field
     @property
-    def max_velocity(self):
-        return self._max_velocity
+    def max_velocity_steps(self):
+        return self._max_velocity_steps
 
-    @max_velocity.setter
-    def max_velocity(self, value):
-        self._max_velocity = value * self.steps_per_mm
+    @max_velocity_steps.setter
+    def max_velocity_steps(self, velocity: float):
+        self._max_velocity_steps = velocity * self.steps_per_mm * self.microsteps
 
     def get_config(self, stepper_id: int) -> List[bytearray]:
         return self.driver.get_config(stepper_id)
 
-    def move(self, new_position: float, time: float, relative: bool = False) -> bytearray:
-        if relative:
-            new_position += self.current_position
-        delta_position = new_position - self.current_position
+    def calculate_position(self, position: float) -> int:
+        if position > self.max_position_steps or position < self.min_position_steps:
+            raise ValueError("Position out of range")
+        position_normalized = position - self.min_position
+        return int(round(position_normalized * self.steps_per_mm * self.microsteps))
+
+    def calculate_speed(self, position: float, new_position: float, time: float) -> int:
+        delta_position = np.abs(new_position - position)
         delta_steps = round(delta_position * self.steps_per_mm * self.microsteps)
         if delta_steps == 0:
-            return bytearray([0, 0, 0, 0, 0])
+            return 0
         steps_per_second = delta_steps / time
-        if steps_per_second > self.max_velocity:
+        if steps_per_second > self.max_velocity_steps:
             raise ValueError("Velocity too high")
         ticks_per_step = 50000 / steps_per_second
+        return int(ticks_per_step)
+
+    def move(self, new_position: float, time: float, relative: bool = False) -> bytearray:
+        if relative:
+            new_position += self._current_position
+        new_position_steps = self.calculate_position(new_position)
+        ticks_per_step = self.calculate_speed(self._current_position, new_position, time)
         move_data: bytearray = bytearray()
-        move_data += int(new_position * self.steps_per_mm * self.microsteps).to_bytes(2, "big")
-        move_data += int(ticks_per_step).to_bytes(3, "big")
-        self.current_position = new_position
+        move_data += new_position_steps.to_bytes(2, "big")
+        move_data += ticks_per_step.to_bytes(3, "big")
+        self._current_position = new_position
         return move_data

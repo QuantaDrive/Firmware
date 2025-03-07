@@ -16,33 +16,32 @@ struct Move current_move;
  */
 void _check_move() {
     // Check if any motors need to move
-    for (size_t i = 0; i < DOF; i++) {
-        struct Stepper *stepper = &steppers[i];
-        if (current_move.speed[i] == 0 || (current_move.stepper_status & (1 << i)) == 0) {
-            stepper_set_status(stepper, STOPPED);
-            current_move.stepper_status &= ~(1 << i);
+    for (size_t stepper_id = 0; stepper_id < DOF; stepper_id++) {
+        if (current_move.speed[stepper_id] == 0 || (current_move.stepper_status & (1 << stepper_id)) == 0) {
+            stepper_set_status(stepper_id, STOPPED);
+            current_move.stepper_status &= ~(1 << stepper_id);
             continue;
         }
-        uint_fast32_t *current_time = &current_move.time[i];
+        uint_fast32_t *current_time = &current_move.time[stepper_id];
         (*current_time)++;
-        *current_time %= current_move.speed[i];
+        *current_time %= current_move.speed[stepper_id];
         if (*current_time != 0) {
             continue;
         }
-        if (stepper->position > current_move.pos[i]) {
-            stepper_set_dir(stepper, false);
-        } else if (stepper->position < current_move.pos[i]) {
-            stepper_set_dir(stepper, true);
+        if (steppers[stepper_id].position > current_move.pos[stepper_id]) {
+            stepper_set_dir(stepper_id, false);
+        } else if (steppers[stepper_id].position < current_move.pos[stepper_id]) {
+            stepper_set_dir(stepper_id, true);
         } else {
-            stepper_set_status(stepper, STOPPED);
-            current_move.stepper_status &= ~(1 << i);
+            stepper_set_status(stepper_id, STOPPED);
+            current_move.stepper_status &= ~(1 << stepper_id);
             continue;
         }
-        stepper_set_status(stepper, MOVING);
-        stepper_step(stepper);
-        if (stepper->position == current_move.pos[i]) {
-            stepper_set_status(stepper, STOPPED);
-            current_move.stepper_status &= ~(1 << i);
+        stepper_set_status(stepper_id, MOVING);
+        stepper_step(stepper_id);
+        if (steppers[stepper_id].position == current_move.pos[stepper_id]) {
+            stepper_set_status(stepper_id, STOPPED);
+            current_move.stepper_status &= ~(1 << stepper_id);
         }
     }
     // if all steppers are done moving
@@ -74,10 +73,9 @@ void move_flush_queue() {
 
 void move_force_stop() {
     move_flush_queue();
+    current_move.stepper_status = 0;
     for (size_t i = 0; i < DOF; i++) {
-        struct Stepper *stepper = &steppers[i];
-        stepper_set_status(stepper, STOPPED);
-        current_move.stepper_status &= ~(1 << i);
+        stepper_set_status(i, STOPPED);
     }
 }
 

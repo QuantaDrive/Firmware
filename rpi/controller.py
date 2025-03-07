@@ -10,12 +10,9 @@ from typing import List, Optional, Tuple
 import serial
 from pydantic import BaseModel, Field, PrivateAttr
 
+from kinematics import kinematic_types
 from gpio import Gpio
 from stepper import Stepper
-
-def load_controller_config(config_file):
-    with open(config_file, "r") as f:
-        return Controller(**yaml.safe_load(f))
 
 @dataclass(order=True)
 class Command:
@@ -24,6 +21,7 @@ class Command:
 
 class Controller(BaseModel):
     serial_mcu : Optional[str] = Field(default=None)
+    kinematic_settings: kinematic_types = Field(..., alias='kinematics', discriminator="type")
     steppers: Optional[List[Stepper]] = Field(default=None)
     gpios: Optional[List[Gpio]] = Field(default=None)
 
@@ -33,20 +31,18 @@ class Controller(BaseModel):
 
     _command_queue: queue.PriorityQueue = PrivateAttr()
     _move_queue: queue.Queue = PrivateAttr()
-    _coordinates: Tuple[float] = PrivateAttr()
 
     def __init__(self, **data):
         super().__init__(**data)
+        self._command_queue = queue.PriorityQueue(10)
+        self._move_queue = queue.Queue(100)
         for stepper in self.steppers:
-            stepper.max_velocity = self.max_velocity
+            stepper.max_velocity_steps = self.max_velocity * 1.5
 
-    @property
-    def coordinates(self):
-        return self._coordinates
-
-    @coordinates.setter
-    def coordinates(self, coordinates):
-        self._coordinates = coordinates
+    @classmethod
+    def from_config(cls, config_file):
+        with open(config_file, "r") as f:
+            return cls(**yaml.safe_load(f))
 
     def find_device(self):
         devices = []
@@ -72,14 +68,12 @@ class Controller(BaseModel):
 
     def connect(self):
         self.find_device()
-        self._command_queue = queue.PriorityQueue(10)
-        self._move_queue = queue.Queue(50)
-        threading.Thread(target=self.send_command_worker, daemon=True).start()
+        threading.Thread(target=self._send_command_worker, daemon=True).start()
 
     def send_config(self):
         for i in range(len(self.steppers)):
             for command in self.steppers[i].get_config(i):
-                self._command_queue.put(Command(2, command))
+                self._command_queue.put(Command(1, command))
 
     def reset(self):
         command: bytearray = bytearray()
@@ -91,13 +85,37 @@ class Controller(BaseModel):
         command += b'\x18'
         self._command_queue.put(Command(0, command))
 
+    def set_homed(self, stepper_id: int):
+        command: bytearray = bytearray()
+        command += b'\x1E'
+        command += stepper_id.to_bytes(1, "big")
+        self._command_queue.put(Command(3, command))
+
+    def set_position(self, stepper_id: int, position: float):
+        command: bytearray = bytearray()
+        command += b'\x1F'
+        command += stepper_id.to_bytes(1, "big")
+        command += self.steppers[stepper_id].calculate_position(position).to_bytes(2, "big")
+        self._command_queue.put(Command(3, command))
+
+    def home_steppers(self):
+        command: bytearray = bytearray()
+        command += b'\x14'
+        self._move_queue.put(command)
+
+    def home_stepper(self, stepper_id: int):
+        command: bytearray = bytearray()
+        command += b'\x15'
+        command += stepper_id.to_bytes(1, "big")
+        self._move_queue.put(command)
+
     def move_steppers(self, new_positions: List[float], time: float, relative: bool = False):
         command: bytearray = bytearray()
         command += b'\x10'
         for i in range(len(self.steppers)):
             command += b'\x00'
             command += self.steppers[i].move(new_positions[i], time, relative)
-        self._move_queue.put(command)
+        #self._move_queue.put(command)
 
     def move_stepper(self, stepper_id: int, new_position: float, time: float, relative: bool = False):
         command: bytearray = bytearray()
@@ -106,24 +124,24 @@ class Controller(BaseModel):
         command += self.steppers[stepper_id].move(new_position, time, relative)
         self._move_queue.put(command)
 
-    def send_command_worker(self):
-        connection = serial.Serial(self.serial_mcu, 115200, timeout=0.1)
-        transmit_request: bool = True
-        while True:
-            if connection.in_waiting > 0:
-                command_in = connection.read(1)
-                if command_in == b'\x00':
-                    transmit_request = True
-                elif command_in == b'\xFF':
-                    print("Error")
-            if transmit_request:
-                if not self._command_queue.empty():
-                    command_out = self._command_queue.get().command
-                    transmit_request = False
-                    connection.write(command_out)
-                    self._command_queue.task_done()
-                elif not self._move_queue.empty():
-                    command_out = self._move_queue.get()
-                    transmit_request = False
-                    connection.write(command_out)
-                    self._move_queue.task_done()
+    def _send_command_worker(self):
+        with serial.Serial(self.serial_mcu, 115200, timeout=0.1) as connection:
+            transmit_request: bool = True
+            while True:
+                if connection.in_waiting > 0:
+                    command_in = connection.read(1)
+                    if command_in == b'\x00':
+                        transmit_request = True
+                    elif command_in == b'\xFF':
+                        print("Error")
+                if transmit_request:
+                    if not self._command_queue.empty():
+                        command_out = self._command_queue.get().command
+                        transmit_request = False
+                        connection.write(command_out)
+                        self._command_queue.task_done()
+                    elif not self._move_queue.empty():
+                        command_out = self._move_queue.get()
+                        transmit_request = False
+                        connection.write(command_out)
+                        self._move_queue.task_done()

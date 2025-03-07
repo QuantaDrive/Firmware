@@ -3,10 +3,22 @@ from typing import Tuple
 
 import sympy as sp
 
-
 class BaseKinematics(ABC):
     forward_kinematics_joint_names: Tuple[str] = ()
     inverse_kinematics_coordinate_names:  Tuple[str] = ()
+
+    _cur_coordinates: Tuple[float | int] = ()
+
+    @property
+    def coordinates(self):
+        if len(self._cur_coordinates) == 0:
+            joint_values = tuple(0 for _ in range(len(self.forward_kinematics_joint_names)))
+            self._cur_coordinates = self.forward_kinematics(joint_values)
+        return self._cur_coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
+        self._cur_coordinates = coordinates
 
     @staticmethod
     @abstractmethod

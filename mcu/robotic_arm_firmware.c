@@ -9,19 +9,24 @@
 int main() {
     stdio_init_all();
     while (!stdio_usb_connected()) {
-        sleep_us(10);
+        sleep_ms(10);
     }
 
     stepper_init();
     move_init();
+    
 
     while (true) {
         if (tud_cdc_available()) {
             uint8_t op_code = stdio_getchar();
             switch (op_code) {
             case 0b00000000: {  // reset controller
-                move_flush_queue();
+                move_force_stop();
                 stepper_init();
+                // Flush input buffer
+                while (tud_cdc_available()) {
+                    stdio_getchar();
+                }
                 break;
             }
             case 0b00000001: {  // set step and dir pins
@@ -33,7 +38,7 @@ int main() {
                 }
                 uint8_t step_pin = stdio_getchar();
                 uint8_t dir_pin = stdio_getchar();
-                stepper_set_step_dir_pins(&steppers[stepper_id], step_pin, dir_pin);
+                stepper_set_step_dir_pins(stepper_id, step_pin, dir_pin);
                 break;
             }
             case 0b00000010: {  // set enable and diag/fault pins
@@ -45,7 +50,7 @@ int main() {
                 }
                 uint8_t enable_pin = stdio_getchar();
                 uint8_t diag_fault_pin = stdio_getchar();
-                stepper_set_enable_fault_pins(&steppers[stepper_id], enable_pin, diag_fault_pin);
+                stepper_set_enable_fault_pins(stepper_id, enable_pin, diag_fault_pin);
                 break;
             }
             case 0b00000011: {  // set spi cs pin and driver type
@@ -57,7 +62,7 @@ int main() {
                 }
                 enum EDriverType driver_type = stdio_getchar();
                 uint8_t spi_cs_pin = stdio_getchar();
-                stepper_set_cs_pin_driver(&steppers[stepper_id], spi_cs_pin, driver_type);
+                stepper_set_cs_pin_driver(stepper_id, spi_cs_pin, driver_type);
                 break;
             }
             case 0b00010000: {  // add movement of all steppers
@@ -93,8 +98,29 @@ int main() {
                 add_move_single(stepper_id, position, speed);
                 break;
             }
+            case 0b00010100: {  // home all steppers
+                break;
+            }
+            case 0b00010101: {  // home specific stepper
+                break;
+            }
             case 0b00011000: {  // stop all steppers
                 move_force_stop();
+                break;
+            }
+            case 0b00011110: {  // set stepper status homed
+                uint8_t stepper_id = stdio_getchar();
+                if (steppers[stepper_id].status == NOT_HOMED) {
+                    stepper_set_status(stepper_id, STOPPED);
+                }
+                break;
+            }
+            case 0b00011111: {  // set stepper position
+                uint8_t stepper_id = stdio_getchar();
+                uint_fast16_t position;
+                position = stdio_getchar() << 8;
+                position |= stdio_getchar();
+                stepper_set_position(stepper_id, position);
                 break;
             }
             default:

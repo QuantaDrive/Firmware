@@ -7,9 +7,10 @@
 
 enum EStepperStatus
 {
+    FAULTED = -2,
+    NOT_HOMED = -1,
     STOPPED = 0,
     MOVING = 1,
-    FAULT = 2
 };
 
 enum EDriverType
@@ -37,13 +38,15 @@ struct Stepper
 extern struct Stepper steppers[DOF];
 
 void stepper_init();
-void create_stepper(struct Stepper *stepper);
-void stepper_set_step_dir_pins(struct Stepper *stepper, uint_fast8_t step_pin, uint_fast8_t dir_pin);
-void stepper_set_enable_fault_pins(struct Stepper *stepper, uint_fast8_t enable_pin, uint_fast8_t diag_fault_pin);
-void stepper_set_cs_pin_driver(struct Stepper *stepper, uint_fast8_t cs_pin, enum EDriverType driver_type);
-void stepper_step(struct Stepper *stepper);
-void stepper_set_dir(struct Stepper *stepper, bool dir);
-void stepper_set_status(struct Stepper *stepper, enum EStepperStatus status);
+void create_stepper(size_t stepper_id);
+void stepper_set_step_dir_pins(size_t stepper_id, uint_fast8_t step_pin, uint_fast8_t dir_pin);
+void stepper_set_enable_fault_pins(size_t stepper_id, uint_fast8_t enable_pin, uint_fast8_t diag_fault_pin);
+void stepper_set_cs_pin_driver(size_t stepper_id, uint_fast8_t cs_pin, enum EDriverType driver_type);
+void stepper_set_position(size_t stepper_id, uint_fast16_t position);
+
+void stepper_step(size_t stepper_id);
+void stepper_set_dir(size_t stepper_id, bool dir);
+void stepper_set_status(size_t stepper_id, enum EStepperStatus status);
 
 #endif
 

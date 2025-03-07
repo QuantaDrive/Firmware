@@ -1,35 +1,62 @@
-max_velocity: 10
-max_accel: 10
+start_velocity: 1
+max_velocity: 25
+max_accel: 5
+
+kinematics:
+    type: 6DOF arm
+    dh_params:
+      - [180.0,  90.0, 231.5,   0.0]
+      - [ 90.0,   0.0,   0.0, 221.0]
+      - [-90.0, -90.0,   0.0,   0.0]
+      - [  0.0,  90.0, 224.5,   0.0]
+      - [  0.0, -90.0,   0.0,   0.0]
+      - [180.0,   0.0,  77.0,   0.0]
 
 
 steppers:
-  - steps_per_mm: 1
+  - steps_per_mm: 5.44444
     microsteps: 32
+    driver:
+      step_pin: 1
+      direction_pin: 1
+
+  - steps_per_mm: 3.01587
+    microsteps: 32
+    min_position: -90
+    max_position: 90
     driver:
       step_pin: 14
       direction_pin: 15
 
-  - steps_per_mm: 1
+  - steps_per_mm: 11.11111
     microsteps: 32
+    min_position: 0
+    max_position: 90
     driver:
       step_pin: 10
       direction_pin: 21
 
-  - steps_per_mm: 1
+  - steps_per_mm: .55555
     microsteps: 32
+    min_position: -90
+    max_position: 90
     driver:
       type: GENERIC
       step_pin: 11
       direction_pin: 20
 
-  - steps_per_mm: 1
+  - steps_per_mm: 2.44444
     microsteps: 32
+    min_position: 0
+    max_position: 90
     driver:
       step_pin: 12
-      direction_pin: ~19
+      direction_pin: 19
 
-  - steps_per_mm: 1
+  - steps_per_mm: 1.11111
     microsteps: 32
+    min_position: -90
+    max_position: 90
     driver:
       type: GENERIC
       step_pin: 13
