@@ -30,10 +30,13 @@ class Planner:
         time_to_move = self.interpolation_step_length / cur_speed
 
         cur_coordinates = np.array(start_coordinates).astype(float)
+        move_length_left = move_length
         move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
         #DEBUG
         # cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
         # print(np.round(np.degrees(cur_joints), 2))
+        accelerating = True
+        braking_distance = 0
         for i in range(interpolation_steps):
             cur_coordinates += move_per_step
             # print(cur_coordinates)
@@ -41,8 +44,17 @@ class Planner:
             # print(np.round(np.degrees(cur_joints), 2))
             self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
-            cur_speed += acceleration * time_to_move
-            cur_speed = min(speed, cur_speed)
+            move_length_left -= self.interpolation_step_length
+            if move_length_left < move_length / 2:
+                braking_distance = (self.controller.start_velocity ** 2 - cur_speed ** 2) / (2 * acceleration)
+            if move_length_left < braking_distance:
+                accelerating = False
+            if accelerating:
+                cur_speed += acceleration * time_to_move
+                cur_speed = min(speed, cur_speed)
+            else:
+                cur_speed -= acceleration * time_to_move
+                cur_speed = max(self.controller.start_velocity, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
 
 

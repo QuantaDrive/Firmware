@@ -1,6 +1,6 @@
 start_velocity: 1
-max_velocity: 25
-max_accel: 5
+max_velocity: 5
+max_accel: 2.5
 
 kinematics:
     type: 6DOF arm
