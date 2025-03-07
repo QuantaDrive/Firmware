@@ -36,8 +36,6 @@ class Controller(BaseModel):
         super().__init__(**data)
         self._command_queue = queue.PriorityQueue(10)
         self._move_queue = queue.Queue(100)
-        for stepper in self.steppers:
-            stepper.max_velocity_steps = self.max_velocity * 2
 
     @classmethod
     def from_config(cls, config_file):

@@ -12,7 +12,7 @@ class Arm6DoF(BaseKinematics):
     inverse_kinematics_coordinate_names = ("x", "y", "z", "yaw", "pitch", "roll")
 
     def __init__(self, dh_params):
-        self.dh_params = np.matrix([
+        self.dh_params = np.array([
             [np.radians(dh_params[0][0]), np.radians(dh_params[0][1]), dh_params[0][2], dh_params[0][3]],
             [np.radians(dh_params[1][0]), np.radians(dh_params[1][1]), dh_params[1][2], dh_params[1][3]],
             [np.radians(dh_params[2][0]), np.radians(dh_params[2][1]), dh_params[2][2], dh_params[2][3]],
@@ -47,21 +47,25 @@ class Arm6DoF(BaseKinematics):
                 [0,              sp.sin(alpha),                sp.cos(alpha),               d],
                 [0,              0,                            0,                           1]
             ])
-        else:
-            return np.matrix([
-                [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
-                [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
-                [0,              np.sin(alpha),                np.cos(alpha),               d],
-                [0,              0,                            0,                           1]
-            ])
+        ct, st = np.cos(theta), np.sin(theta)
+        ca, sa = np.cos(alpha), np.sin(alpha)
+        return np.array([
+            [ct, -st*ca,  st*sa, a*ct],
+            [st,  ct*ca, -ct*sa, a*st],
+            [0,      sa,     ca,    d],
+            [0,       0,      0,    1]
+        ])
 
     @staticmethod
     def transformation_matrix(x, y, z, yaw, pitch, roll):
-        return np.matrix([
-            [np.cos(yaw)*np.cos(pitch), np.cos(yaw)*np.sin(pitch)*np.sin(roll) - np.sin(yaw)*np.cos(roll), np.cos(yaw)*np.sin(pitch)*np.cos(roll) + np.sin(yaw)*np.sin(roll), x],
-            [np.sin(yaw)*np.cos(pitch), np.sin(yaw)*np.sin(pitch)*np.sin(roll) + np.cos(yaw)*np.cos(roll), np.sin(yaw)*np.sin(pitch)*np.cos(roll) - np.cos(yaw)*np.sin(roll), y],
-            [           -np.sin(pitch),             np.cos(pitch)*np.sin(roll)                           , np.cos(pitch)*np.cos(roll)                                       , z],
-            [                        0,                                                                 0,                                                                 0, 1]
+        cy, sy = np.cos(yaw), np.sin(yaw)
+        cp, sp = np.cos(pitch), np.sin(pitch)
+        cr, sr = np.cos(roll), np.sin(roll)
+        return np.array([
+            [cy*cp, cy*sp*sr - sy*cr, cy*sp*cr + sy*sr, x],
+            [sy*cp, sy*sp*sr + cy*cr, sy*sp*cr - cy*sr, y],
+            [  -sp,    cp*sr        ,    cp*cr        , z],
+            [    0,        0        ,        0        , 1]
         ])
 
     def forward_kinematics(self, joints: Tuple[float | int], toolframe_matrix=sp.eye(4)):
@@ -94,9 +98,10 @@ class Arm6DoF(BaseKinematics):
         spherical_wrist_matrix = j0_6_reverse_kin_matrix @ j0_6_negate_matrix
         thetaA = np.arctan2(spherical_wrist_matrix[1, 3], spherical_wrist_matrix[0, 3])
         # x and y transformed so that j1 angle is 0 for the following calculations
+        cThetaA, sThetaA = np.cos(thetaA), np.sin(thetaA)
         pos_j1_zero = np.array([
-            spherical_wrist_matrix[0, 3] * np.cos(thetaA) - spherical_wrist_matrix[1, 3] * np.sin(thetaA),
-            spherical_wrist_matrix[1, 3] * np.cos(thetaA) + spherical_wrist_matrix[0, 3] * np.sin(thetaA),
+            spherical_wrist_matrix[0, 3] * cThetaA - spherical_wrist_matrix[1, 3] * sThetaA,
+            spherical_wrist_matrix[1, 3] * cThetaA + spherical_wrist_matrix[0, 3] * sThetaA,
             spherical_wrist_matrix[2, 3]])
         # l1 = x' - dh_a1
         l1 = pos_j1_zero[0] - self.dh_params[0, 3]
@@ -124,7 +129,7 @@ class Arm6DoF(BaseKinematics):
         j2_dh_matrix = Arm6DoF.dh_transformation_matrix(self.dh_params[1, 0] + j2_angle, self.dh_params[1, 1], self.dh_params[1, 2], self.dh_params[1, 3])
         j3_dh_matrix = Arm6DoF.dh_transformation_matrix(self.dh_params[2, 0] + j3_angle, self.dh_params[2, 1], self.dh_params[2, 2], self.dh_params[2, 3])
         j0_3_dh_matrix = j1_dh_matrix @ j2_dh_matrix @ j3_dh_matrix
-        j0_3_orientation_matrix_transposed = np.matrix_transpose(j0_3_dh_matrix[0:3:1,0:3:1]) @ j0_6_reverse_kin_matrix[0:3:1,0:3:1]
+        j0_3_orientation_matrix_transposed = j0_3_dh_matrix[0:3:1,0:3:1].T @ j0_6_reverse_kin_matrix[0:3:1,0:3:1]
 
         # j5 = atan2(sqrt(1 - orientation_33^2), orientation_33)
         j5_angle = np.atan2(np.sqrt(1 - j0_3_orientation_matrix_transposed[2, 2] ** 2), j0_3_orientation_matrix_transposed[2, 2])
@@ -153,7 +158,7 @@ class Arm6DoFModel(BaseModel):
         return Arm6DoF(self.dh_params)
 
 if __name__ == "__main__":
-    dh_params = np.matrix([
+    dh_params = np.array([
         [  180,  90.0, 231.5,   0.0],
         [ 90.0,   0.0,   0.0, 221.0],
         [-90.0, -90.0,   0.0,   0.0],

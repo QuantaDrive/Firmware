@@ -80,26 +80,22 @@ class Stepper(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
+    @computed_field(return_type=float)
+    @cached_property
+    def final_steps_per_mm(self):
+        return self.steps_per_mm * self.microsteps
+
     @computed_field(return_type=int)
     @cached_property
     def min_position_steps(self):
-        return int(self.min_position * self.steps_per_mm * self.microsteps)
+        return int(self.min_position * self.final_steps_per_mm)
 
     @computed_field(return_type=int)
     @cached_property
     def max_position_steps(self):
         if self.max_position == np.inf:
             return np.inf
-        return int(self.max_position * self.steps_per_mm * self.microsteps)
-
-    # @computed_field
-    @property
-    def max_velocity_steps(self):
-        return self._max_velocity_steps
-
-    @max_velocity_steps.setter
-    def max_velocity_steps(self, velocity: float):
-        self._max_velocity_steps = velocity * self.steps_per_mm * self.microsteps
+        return int(self.max_position * self.final_steps_per_mm)
 
     def get_config(self, stepper_id: int) -> List[bytearray]:
         return self.driver.get_config(stepper_id)
@@ -108,16 +104,14 @@ class Stepper(BaseModel):
         if position > self.max_position_steps or position < self.min_position_steps:
             raise ValueError("Position out of range")
         position_normalized = position - self.min_position
-        return int(round(position_normalized * self.steps_per_mm * self.microsteps))
+        return int(round(position_normalized * self.final_steps_per_mm))
 
     def calculate_speed(self, position: float, new_position: float, time: float) -> int:
         delta_position = np.abs(new_position - position)
-        delta_steps = round(delta_position * self.steps_per_mm * self.microsteps)
+        delta_steps = round(delta_position * self.final_steps_per_mm)
         if delta_steps == 0:
             return 0
         steps_per_second = delta_steps / time
-        if steps_per_second > self.max_velocity_steps:
-            raise ValueError("Velocity too high")
         ticks_per_step = 50000 / steps_per_second
         return int(ticks_per_step)
 
