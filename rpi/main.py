@@ -17,7 +17,7 @@ for i in range(6):
 
 planner = Planner(controller)
 
-time.sleep(5)
+# time.sleep(5)
 print("Start")
 
 # cur_speed = controller.start_velocity
@@ -62,9 +62,10 @@ print("Start")
 #             break
 
 
-planner.plan_move((301.5, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+planner.plan_move((250, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
 planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+planner.plan_move((0, 0, 753.99, np.radians(0), np.radians(0), np.radians(0)))
 
-
+print("Done calculating")
 while True:
-    time.sleep(0.5)
+    time.sleep(1)

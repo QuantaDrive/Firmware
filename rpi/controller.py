@@ -35,7 +35,7 @@ class Controller(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self._command_queue = queue.PriorityQueue(10)
-        self._move_queue = queue.Queue(100)
+        self._move_queue = queue.Queue()
 
     @classmethod
     def from_config(cls, config_file):
@@ -113,7 +113,7 @@ class Controller(BaseModel):
         for i in range(len(self.steppers)):
             command += b'\x00'
             command += self.steppers[i].move(new_positions[i], time, relative)
-        # self._move_queue.put(command)
+        self._move_queue.put(command)
 
     def move_stepper(self, stepper_id: int, new_position: float, time: float, relative: bool = False):
         command: bytearray = bytearray()

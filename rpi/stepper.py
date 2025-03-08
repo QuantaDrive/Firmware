@@ -123,5 +123,6 @@ class Stepper(BaseModel):
         move_data: bytearray = bytearray()
         move_data += new_position_steps.to_bytes(2, "big")
         move_data += ticks_per_step.to_bytes(3, "big")
-        self._current_position = new_position
+        if ticks_per_step != 0: # Because if the speed is 0, the position will not change
+            self._current_position = new_position
         return move_data
