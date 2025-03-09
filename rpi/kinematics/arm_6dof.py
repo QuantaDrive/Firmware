@@ -132,23 +132,30 @@ class Arm6DoF(BaseKinematics):
         j0_3_orientation_matrix_transposed = j0_3_dh_matrix[0:3:1,0:3:1].T @ j0_6_reverse_kin_matrix[0:3:1,0:3:1]
 
         # j5 = atan2(sqrt(1 - orientation_33^2), orientation_33)
-        j5_angle = np.atan2(np.sqrt(1 - j0_3_orientation_matrix_transposed[2, 2] ** 2), j0_3_orientation_matrix_transposed[2, 2])
-        j4_angle = np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
-        j6_angle = np.atan2(j0_3_orientation_matrix_transposed[2, 1], - j0_3_orientation_matrix_transposed[2, 0])
-        if np.isclose(j5_angle, 0, atol=1e-5):
-            j6_angle -= j4_angle
-            j4_angle = 0
-        # if j5_angle > 0:
-        #     # j4 = atan2(orientation_23, orientation_13)
-        #     j4_angle = np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
-        #     # j6 = atan2(orientation_32, - orientation_31)
-        #     j6_angle = np.atan2(j0_3_orientation_matrix_transposed[2, 1], - j0_3_orientation_matrix_transposed[2, 0])
-        # else:
-        #     # j4 = atan2( - orientation_23,  - orientation_13)
-        #     j4_angle = np.atan2( - j0_3_orientation_matrix_transposed[1, 2], - j0_3_orientation_matrix_transposed[0, 2])
-        #     # j6 = atan2( - orientation_32, orientation_31)
-        #     j6_angle = np.atan2( - j0_3_orientation_matrix_transposed[2, 1], j0_3_orientation_matrix_transposed[2, 0])
-        return j1_angle, j2_angle, j3_angle, j4_angle * 0, j5_angle, j6_angle * 0
+        #print(np.round(j0_3_orientation_matrix_transposed, 5))
+        j5_angle = np.atan2(-j0_3_orientation_matrix_transposed[2, 0], np.sqrt(
+            j0_3_orientation_matrix_transposed[0, 0] ** 2 + j0_3_orientation_matrix_transposed[1, 0] ** 2))
+        # j5_angle = np.atan2(np.sqrt(1 - j0_3_orientation_matrix_transposed[2, 2] ** 2), j0_3_orientation_matrix_transposed[2, 2])
+        j4_angle = 0
+        j6_angle = 0
+        # if np.isclose(j5_angle, 0, atol=1e-5):
+        #     j6_angle -= j4_angle
+        #     j4_angle = 0
+        if j5_angle > 0:
+            # j4 = atan2(orientation_23, orientation_13)
+            j4_angle = np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
+            # j6 = atan2(orientation_32, - orientation_31)
+            j6_angle = np.atan2(j0_3_orientation_matrix_transposed[2, 1], - j0_3_orientation_matrix_transposed[2, 0])
+        else:
+            # j4 = atan2( - orientation_23,  - orientation_13)
+            j4_angle = np.atan2( - j0_3_orientation_matrix_transposed[1, 2], - j0_3_orientation_matrix_transposed[0, 2])
+            # j6 = atan2( - orientation_32, orientation_31)
+            j6_angle = np.atan2( - j0_3_orientation_matrix_transposed[2, 1], j0_3_orientation_matrix_transposed[2, 0])
+        if j4_angle > 0:
+            j4_angle -= np.pi
+        else:
+            j4_angle += np.pi
+        return j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle
 
 class Arm6DoFModel(BaseModel):
     type: Literal["6DOF arm"]
@@ -180,11 +187,11 @@ if __name__ == "__main__":
     print("roll: " + str(np.degrees(roll)))
     print()
 
-    j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((x, y, z, yaw, pitch, roll), toolframe_matrix)
-    #j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = inverse_kinematics((457.7706, 0, 387.7706, -90, -90, -90), toolframe_matrix)
+    # j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((x, y, z, yaw, pitch, roll), toolframe_matrix)
+    j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((300, 0, 525, np.radians(0), np.radians(0),  np.radians(90)), toolframe_matrix)
     print("j1_angle: " + str(np.degrees(j1_angle)))
     print("j2_angle: " + str(np.degrees(j2_angle)))
-    print("j3_angle: " + str(180 - np.degrees(j3_angle)))
+    print("j3_angle: " + str(np.degrees(j3_angle)))
     print("j4_angle: " + str(np.degrees(j4_angle)))
-    print("j5_angle: " + str(np.degrees(j5_angle) - 90))
-    print("j6_angle: " + str(180 - np.degrees(j6_angle)))
+    print("j5_angle: " + str(np.degrees(j5_angle)))
+    print("j6_angle: " + str(np.degrees(j6_angle)))

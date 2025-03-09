@@ -1,5 +1,5 @@
-max_velocity: 15
-max_accel: 2.5
+max_velocity: 10
+max_accel: 2
 
 kinematics:
     type: 6DOF arm
@@ -13,13 +13,19 @@ kinematics:
 
 
 steppers:
-  - steps_per_mm: 5.44444
+  - mm_per_rev: 360
+    gear_ratio: 9.8
+    steps_per_rev: 200
     microsteps: 32
+    min_position: -135
+    max_position: 135
     driver:
       step_pin: 1
       direction_pin: 1
 
-  - steps_per_mm: 3.01587
+  - mm_per_rev: 360
+    gear_ratio: 5.428571429
+    steps_per_rev: 200
     microsteps: 32
     min_position: -90
     max_position: 90
@@ -27,35 +33,43 @@ steppers:
       step_pin: 14
       direction_pin: 15
 
-  - steps_per_mm: 11.11111
+  - mm_per_rev: 360
+    gear_ratio: 20
+    steps_per_rev: 200
     microsteps: 32
     min_position: 0
-    max_position: 90
+    max_position: 120
     driver:
       step_pin: 10
       direction_pin: 21
 
-  - steps_per_mm: .55555
+  - mm_per_rev: 360
+    gear_ratio: 1
+    steps_per_rev: 200
     microsteps: 32
-    min_position: -90
-    max_position: 90
+    min_position: -180
+    max_position: 180
     driver:
       type: GENERIC
       step_pin: 11
       direction_pin: 20
 
-  - steps_per_mm: 2.44444
+  - mm_per_rev: 360
+    gear_ratio: 4.4
+    steps_per_rev: 200
     microsteps: 32
-    min_position: 0
+    min_position: -90
     max_position: 90
     driver:
       step_pin: 12
       direction_pin: 19
 
-  - steps_per_mm: 1.11111
+  - mm_per_rev: 360
+    gear_ratio: 1
+    steps_per_rev: 400
     microsteps: 32
-    min_position: -90
-    max_position: 90
+    min_position: -180
+    max_position: 180
     driver:
       type: GENERIC
       step_pin: 13

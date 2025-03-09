@@ -69,7 +69,9 @@ class Driver(BaseModel):
 
 class Stepper(BaseModel):
     driver: Driver
-    steps_per_mm: PositiveFloat = Field(default=200)
+    mm_per_rev: PositiveFloat = Field(default=1)
+    gear_ratio: PositiveFloat = Field(default=1)
+    steps_per_rev: PositiveInt = Field(default=200)
     microsteps: PositiveInt = Field(default=1)
     min_position: float = Field(default=0)
     max_position: float = Field(default=np.inf)
@@ -83,7 +85,7 @@ class Stepper(BaseModel):
     @computed_field(return_type=float)
     @cached_property
     def final_steps_per_mm(self):
-        return self.steps_per_mm * self.microsteps
+        return self.gear_ratio * self.steps_per_rev * self.microsteps / self.mm_per_rev
 
     @computed_field(return_type=int)
     @cached_property
@@ -101,8 +103,10 @@ class Stepper(BaseModel):
         return self.driver.get_config(stepper_id)
 
     def calculate_position(self, position: float) -> int:
-        if position > self.max_position_steps or position < self.min_position_steps:
-            raise ValueError("Position out of range")
+        if position > self.max_position or position < self.min_position:
+            print("Position out of range: " + str(position))
+            position = np.clip(position, self.min_position, self.max_position)
+            #raise ValueError("Position out of range")
         position_normalized = position - self.min_position
         return int(round(position_normalized * self.final_steps_per_mm))
 

@@ -62,9 +62,20 @@ print("Start")
 #             break
 
 
-planner.plan_move((250, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
-planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
-planner.plan_move((0, 0, 753.99, np.radians(0), np.radians(0), np.radians(0)))
+planner.plan_move((300, 0, 525, np.radians(0), np.radians(0),  np.radians(0)))
+input("Press enter to continue")
+planner.plan_move((300, 0, 575, np.radians(0), np.radians(0),  np.radians(0)))
+input("Press enter to continue")
+planner.plan_move((300, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
+input("Press enter to continue")
+planner.plan_move((350, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
+planner.plan_move((300, 0, 525, np.radians(0), np.radians(90), np.radians(0)))
+input("Press enter to continue")
+# planner.plan_move((0, 0, 754, np.radians(0), np.radians(0), np.radians(0)))
+# input("Press enter to continue")
+# planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(90)))
+# input("Press enter to continue")
+# planner.plan_move((300, 0, 525, np.radians(0), np.radians(0),  np.radians(45)))
 
 print("Done calculating")
 while True:

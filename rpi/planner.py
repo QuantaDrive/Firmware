@@ -35,15 +35,15 @@ class Planner:
         move_length_left = move_length
         move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
         #DEBUG
-        # cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
-        # print(np.round(np.degrees(cur_joints), 2))
+        cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
+        print(np.round(np.degrees(cur_joints), 2))
         accelerating = True
         braking_distance = 0
         for i in range(interpolation_steps):
             cur_coordinates += move_per_step
             # print(np.round(cur_coordinates, 2))
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
-            # print("Joints: ", np.round(np.degrees(cur_joints), 2))
+            print("Joints: ", np.round(np.degrees(cur_joints), 2))
             self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
             move_length_left -= self.interpolation_step_length
@@ -68,9 +68,10 @@ if __name__ == "__main__":
     # controller.send_config()
 
     planner = Planner(controller)
+
     planner.plan_move((301.5, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
     print()
-    # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
-    # print()
-    # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(15)))
+    planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+    print()
+    planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(25)))
 
