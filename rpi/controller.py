@@ -26,7 +26,6 @@ class Controller(BaseModel):
     steppers: Optional[List[Stepper]] = Field(default=None)
     gpios: Optional[List[Gpio]] = Field(default=None)
 
-    start_velocity: float = Field(default=1)     # mm per second
     max_velocity: float = Field(default=50)      # mm per second
     max_accel: float = Field(default=10)         # mm per second^2
 

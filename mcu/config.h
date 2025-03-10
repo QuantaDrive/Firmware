@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 
 #define DOF 6
 #ifdef DEBUG

@@ -28,27 +28,35 @@ class Planner:
 
         # Take the starting speed same as the interpolation step length * 2
         # So the first move is 0.5 second long
-        cur_speed = self.interpolation_step_length * 2
+        min_speed = self.interpolation_step_length * 2
+        cur_speed = min_speed
         time_to_move = self.interpolation_step_length / cur_speed
 
         cur_coordinates = np.array(start_coordinates).astype(float)
         move_length_left = move_length
         move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
-        #DEBUG
-        cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
-        print(np.round(np.degrees(cur_joints), 2))
+
         accelerating = True
         braking_distance = 0
         for i in range(interpolation_steps):
+            # Calculate the next coordinates
             cur_coordinates += move_per_step
-            # print(np.round(cur_coordinates, 2))
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
-            print("Joints: ", np.round(np.degrees(cur_joints), 2))
+            # print("Joints: ", np.round(np.degrees(cur_joints), 2))
+            # Check moves with the steppers maximum speed/acceleration
+            ETA = time_to_move
+            for j in range(len(self.controller.steppers)):
+                if not self.controller.steppers[j].check_move(np.degrees(cur_joints[j]), time_to_move):
+                    stepper_ETA = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
+                    ETA = max(ETA, stepper_ETA)
+                    cur_speed = max(min_speed, self.interpolation_step_length / ETA)
+            # Move the steppers and kinematics
             self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
+            # Check for acceleration or deceleration
             move_length_left -= self.interpolation_step_length
             if move_length_left < move_length / 2:
-                braking_distance = np.abs((self.controller.start_velocity ** 2 - cur_speed ** 2) / (2 * acceleration))
+                braking_distance = np.abs(((self.interpolation_step_length * 2) ** 2 - cur_speed ** 2) / (2 * acceleration))
             if move_length_left < braking_distance:
                 accelerating = False
             if accelerating:
@@ -56,7 +64,7 @@ class Planner:
                 cur_speed = min(speed, cur_speed)
             else:
                 cur_speed -= acceleration * time_to_move
-                cur_speed = max(self.interpolation_step_length * 2, cur_speed)
+                cur_speed = max(min_speed, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
 
 
@@ -69,7 +77,9 @@ if __name__ == "__main__":
 
     planner = Planner(controller)
 
-    planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(90)))
+    planner.plan_move((300, 0, 525, np.radians(0), np.radians(90), np.radians(0)))
+    print()
+    planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(0)))
     # print()
     # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
     # print()

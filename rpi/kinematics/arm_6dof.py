@@ -132,12 +132,8 @@ class Arm6DoF(BaseKinematics):
         j0_3_orientation_matrix_transposed = j0_3_dh_matrix[0:3:1,0:3:1].T @ j0_6_reverse_kin_matrix[0:3:1,0:3:1]
 
         # j5 = atan2(sqrt(1 - orientation_33^2), orientation_33)
-        #print(np.round(j0_3_orientation_matrix_transposed, 5))
         j5_angle = np.atan2(-j0_3_orientation_matrix_transposed[2, 0], np.sqrt(
             j0_3_orientation_matrix_transposed[0, 0] ** 2 + j0_3_orientation_matrix_transposed[1, 0] ** 2))
-        # j5_angle = np.atan2(np.sqrt(1 - j0_3_orientation_matrix_transposed[2, 2] ** 2), j0_3_orientation_matrix_transposed[2, 2])
-        j4_angle = 0
-        j6_angle = 0
         # if np.isclose(j5_angle, 0, atol=1e-5):
         #     j6_angle -= j4_angle
         #     j4_angle = 0

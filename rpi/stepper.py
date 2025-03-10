@@ -63,27 +63,32 @@ class Driver(BaseModel):
         commands.append(set_driver_cs_command)
         return commands
 
-
 class Stepper(BaseModel):
     driver: Driver
     mm_per_rev: PositiveFloat = Field(default=1)
     gear_ratio: PositiveFloat = Field(default=1)
-    steps_per_rev: PositiveInt = Field(default=200)
     microsteps: PositiveInt = Field(default=1)
+    steps_per_rev: PositiveInt = Field(default=200)
     min_position: float = Field(default=0)
     max_position: float = Field(default=np.inf)
+    max_velocity: float = Field(default=np.inf)
+    max_accel: float = Field(default=np.inf)
 
     _current_position: float = PrivateAttr(default=0)
-    _current_steps: int = PrivateAttr(default=0)
+    _cur_speed: float = PrivateAttr(default=0)  # rotations per second
+    _time_skipped: float = PrivateAttr(default=0)
 
     def __init__(self, **data):
         super().__init__(**data)
-        self._current_steps = round((self._current_position - self.min_position) * self.final_steps_per_mm)
 
     @computed_field(return_type=float)
     @cached_property
     def final_steps_per_mm(self):
         return self.gear_ratio * self.steps_per_rev * self.microsteps / self.mm_per_rev
+
+    @computed_field(return_type=int)
+    def _current_position_steps(self):
+        return self.get_steps(self._current_position)
 
     @computed_field(return_type=int)
     @cached_property
@@ -100,17 +105,47 @@ class Stepper(BaseModel):
     def get_config(self, stepper_id: int) -> List[bytearray]:
         return self.driver.get_config(stepper_id)
 
+    def check_move(self, new_position: float, time: float, relative: bool = False):
+        if relative:
+            delta_position = new_position
+        else:
+            delta_position = new_position - self._current_position
+        if delta_position < 10:
+            return True
+        speed = np.abs(delta_position / (time + self._time_skipped))
+        acceleration = (speed - self._cur_speed) / (time + self._time_skipped)
+        if speed > self.max_velocity or acceleration > self.max_accel:
+            return False
+        return True
+
+    def ETA(self, new_position: float, relative: bool = False):
+        if relative:
+            delta_position = new_position
+        else:
+            delta_position = new_position - self._current_position
+        delta_position = np.abs(delta_position)
+
+        position_to_full_speed = np.abs((self.max_velocity ** 2 - self._cur_speed ** 2) / (2 * self.max_accel))
+        if delta_position < position_to_full_speed:
+            time_to_full_speed = (- self._cur_speed + np.sqrt(self._cur_speed ** 2 + 2 * self.max_accel * delta_position)) / (2 * self.max_accel)
+            return time_to_full_speed
+        time_to_full_speed = (self.max_velocity - self._cur_speed) / self.max_accel
+        remaining_position = delta_position - position_to_full_speed
+        remaining_time = remaining_position / self.max_velocity
+        return time_to_full_speed + remaining_time
+
+    def get_steps(self, position: float) -> int:
+        return round((position - self.min_position) * self.final_steps_per_mm)
+
     def calculate_position(self, position: float) -> int:
         if position > self.max_position or position < self.min_position:
             print("Position out of range: " + str(position))
             position = np.clip(position, self.min_position, self.max_position)
             #raise ValueError("Position out of range")
-        position_normalized = position - self.min_position
-        return int(round(position_normalized * self.final_steps_per_mm))
+        return self.get_steps(position)
 
     def calculate_speed(self, position_steps: int, time: float) -> int:
-        delta_steps = np.abs(position_steps - self._current_steps)
-        print(delta_steps)
+        delta_steps = np.abs(position_steps - self._current_position_steps)
         if delta_steps == 0:
             return 0
         steps_per_second = delta_steps / time
@@ -121,11 +156,15 @@ class Stepper(BaseModel):
         if relative:
             new_position += self._current_position
         new_position_steps = self.calculate_position(new_position)
+        # time skipped is not included because the move needs to be done at this time otherwise this stepper will hold up the other steppers
         ticks_per_step = self.calculate_speed(new_position_steps, time)
         move_data: bytearray = bytearray()
         move_data += new_position_steps.to_bytes(2, "big")
         move_data += ticks_per_step.to_bytes(3, "big")
         if ticks_per_step != 0: # Because if the speed is 0, the position will not change
+            self._cur_speed = np.abs((new_position - self._current_position) / (time + self._time_skipped))
             self._current_position = new_position
-            self._current_steps = new_position_steps
+            self._time_skipped = 0
+        elif self._current_position != new_position:
+            self._time_skipped += time
         return move_data
