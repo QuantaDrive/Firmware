@@ -22,10 +22,12 @@ void _check_move() {
             current_move.stepper_status &= ~(1 << stepper_id);
             continue;
         }
-        uint_fast32_t *current_time = &current_move.time[stepper_id];
-        (*current_time)++;
-        *current_time %= current_move.speed[stepper_id];
-        if (*current_time != 0) {
+        // uint_fast32_t *current_time = &current_move.time[stepper_id];
+        // (*current_time)++;
+        // *current_time %= current_move.speed[stepper_id];
+        current_move.time[stepper_id]++;
+        current_move.time[stepper_id] %= current_move.speed[stepper_id];
+        if (current_move.time[stepper_id] != 0) {
             continue;
         }
         if (steppers[stepper_id].position > current_move.pos[stepper_id]) {
@@ -52,17 +54,22 @@ void _check_move() {
 }
 
 void _move_queue_loop() {
+    gpio_set_function_masked(1 << 28, GPIO_FUNC_SIO);
+    gpio_set_dir_out_masked(1 << 28);
     uint64_t start = time_us_64();
     while (true) {
-        if (time_us_64() - start > US_PER_TICK) {
+        if (time_us_64() - start >= US_PER_TICK) {
             start = time_us_64();
+            gpio_set_mask(1 << 28);
             _check_move();
+            gpio_clr_mask(1 << 28);
         }
     }
 }
 
 void move_init() {
     queue_init(&move_queue, sizeof(struct Move), MOVES_CACHE_SIZE);
+    sleep_ms(5); // IMPORTANT otherwise core 1 starts too early and crashes
     multicore_launch_core1(_move_queue_loop);
 }
 
@@ -77,6 +84,10 @@ void move_force_stop() {
     for (size_t i = 0; i < DOF; i++) {
         stepper_set_status(i, STOPPED);
     }
+}
+
+bool move_queue_not_full() {
+    return !queue_is_full(&move_queue);
 }
 
 void add_move(uint_fast16_t *pos, uint_fast32_t *speed) {

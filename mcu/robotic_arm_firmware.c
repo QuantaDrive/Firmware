@@ -3,30 +3,37 @@
 #include "move.h"
 
 #include <stdio.h>
-#include <tusb.h>
+#ifndef DEBUG
+    #include <tusb.h>
+#endif
 #include "pico/stdlib.h"
 
 int main() {
     stdio_init_all();
+    #ifndef DEBUG
     while (!stdio_usb_connected()) {
         sleep_ms(10);
     }
+    #endif
 
     stepper_init();
     move_init();
     
-
     while (true) {
+        #ifndef DEBUG
         if (tud_cdc_available()) {
+        #endif
             uint8_t op_code = stdio_getchar();
             switch (op_code) {
             case 0b00000000: {  // reset controller
                 move_force_stop();
                 stepper_init();
                 // Flush input buffer
+                #ifndef DEBUG
                 while (tud_cdc_available()) {
                     stdio_getchar();
                 }
+                #endif
                 break;
             }
             case 0b00000001: {  // set step and dir pins
@@ -123,11 +130,20 @@ int main() {
                 stepper_set_position(stepper_id, position);
                 break;
             }
-            default:
-                stdio_putchar_raw(0xFF);
+            case 0b11111111: {  // keep alive
                 break;
             }
-            stdio_putchar_raw(0x00);
+            default:
+                break;
+            }
+            stdio_putchar_raw(op_code);
+            if (move_queue_not_full()) {
+                stdio_putchar_raw(0x01); 
+            } else {
+                stdio_putchar_raw(0x00);
+            }
+        #ifndef DEBUG
         }
+        #endif
     }
 }

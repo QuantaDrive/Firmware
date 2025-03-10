@@ -1,11 +1,12 @@
 import os
 import threading
 import queue
+import time
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 
 import yaml
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import serial
 from pydantic import BaseModel, Field, PrivateAttr
@@ -35,7 +36,10 @@ class Controller(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self._command_queue = queue.PriorityQueue(10)
-        self._move_queue = queue.Queue()
+        if os.environ.get("MCU_DEBUG") is not None:
+            self._move_queue = queue.Queue(1)
+        else:
+            self._move_queue = queue.Queue()
 
     @classmethod
     def from_config(cls, config_file):
@@ -43,6 +47,9 @@ class Controller(BaseModel):
             return cls(**yaml.safe_load(f))
 
     def find_device(self):
+        device_prefix = "usb-Raspberry_Pi_Pico"
+        if os.environ.get("MCU_DEBUG") is not None:
+            device_prefix = "usb-Raspberry_Pi_Debug_Probe__CMSIS-DAP"
         devices = []
         if self.serial_mcu is not None:
             if not os.path.exists(self.serial_mcu):
@@ -50,7 +57,7 @@ class Controller(BaseModel):
                 exit(1)
             return
         for device in os.listdir("/dev/serial/by-id"):
-            if device.startswith("usb-Raspberry_Pi_Pico"):
+            if device.startswith(device_prefix):
                 devices.append("/dev/serial/by-id/" + device)
 
         if len(devices) == 0:
@@ -123,23 +130,50 @@ class Controller(BaseModel):
         self._move_queue.put(command)
 
     def _send_command_worker(self):
-        with serial.Serial(self.serial_mcu, 115200, timeout=0.1) as connection:
+        with serial.Serial(self.serial_mcu, 115200) as connection:
             transmit_request: bool = True
+            transmit_move: bool = False
+            last_keep_alive: float = time.time()
             while True:
+                if time.time() - last_keep_alive > 0.01:
+                    connection.write(b'\xFF')
+                    check = connection.read(1)
+                    if check == b'\xFF':
+                        last_keep_alive = time.time()
+                    else:
+                        print("Connection timed out to MCU.")
+
+                # if time.time() - last_keep_alive > 5:
+                #     raise TimeoutError("Connection timed out to MCU.")
                 if connection.in_waiting > 0:
+                    last_keep_alive = time.time()
                     command_in = connection.read(1)
                     if command_in == b'\x00':
                         transmit_request = True
-                    elif command_in == b'\xFF':
-                        print("Error")
+                    elif command_in == b'\x01':
+                        transmit_request = True
+                        transmit_move = True
                 if transmit_request:
+                    command_out = None
+                    move_command = True
                     if not self._command_queue.empty():
                         command_out = self._command_queue.get().command
-                        transmit_request = False
-                        connection.write(command_out)
-                        self._command_queue.task_done()
-                    elif not self._move_queue.empty():
+                        move_command = False
+                    elif transmit_move and not self._move_queue.empty():
                         command_out = self._move_queue.get()
+                    if command_out is not None:
                         transmit_request = False
+                        transmit_move = False
                         connection.write(command_out)
-                        self._move_queue.task_done()
+                        op_code_check = connection.read(1)
+                        while op_code_check != command_out[0:1]:
+                            print("Error:", str(op_code_check) + " != " + str(command_out[0:1]))
+                            print("Command:", str(command_out).replace('\\x', ' ').replace('\\r', ' 0d').replace('\\n', ' 0a'))
+                            print("Trying again...")
+                            op_code_check = connection.read(1)
+                        if move_command:
+                            self._move_queue.task_done()
+                        else:
+                            self._command_queue.task_done()
+                        if os.environ.get("MCU_DEBUG") is not None:
+                            print(str(command_out).replace('\\x', ' ').replace('\\r', ' 0d').replace('\\n', ' 0a'))

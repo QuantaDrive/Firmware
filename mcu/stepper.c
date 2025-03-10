@@ -13,11 +13,11 @@ void create_stepper(size_t stepper_id) {
     stepper->position = 0;
     stepper->status = NOT_HOMED;
     stepper->driver_type = NONE;
-    stepper->step_pin = 0;
-    stepper->dir_pin = 0;
-    stepper->enable_pin = 0;
-    stepper->diag_fault_pin = 0;
-    stepper->spi_cs_pin = 0;
+    stepper->step_pin = 31;
+    stepper->dir_pin = 31;
+    stepper->enable_pin = 31;
+    stepper->diag_fault_pin = 31;
+    stepper->spi_cs_pin = 31;
 }
 
 void _stepper_set_output_pin(uint_fast8_t pin) {

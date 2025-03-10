@@ -15,10 +15,10 @@ class DriverType(IntEnum):
 class Driver(BaseModel):
     type: DriverType = Field(default=DriverType.GENERIC)
     step_pin: Gpio
-    direction_pin: Gpio
+    direction_pin: Gpio #IMPORTANT this pin has to be unique because the mcu reads the current state of the pin to see direction
     enable_pin: Optional[Gpio] = Field(default=None)
     diag_fault_pin: Optional[Gpio] = Field(default=None)
-    spi_cs_pin: Optional[Gpio] = Field(default=None)
+    spi_cs_pin: Optional[Gpio] = Field(default=Gpio())
 
     @field_validator("type", mode="before")
     @classmethod
@@ -59,10 +59,7 @@ class Driver(BaseModel):
         set_driver_cs_command += b"\x03"
         set_driver_cs_command += stepper_id.to_bytes(1, "big")
         set_driver_cs_command += self.type.to_bytes(1, "big")
-        if self.spi_cs_pin is None:
-            set_driver_cs_command += b"\x00"
-        else:
-            set_driver_cs_command += self.spi_cs_pin.pin_number_config
+        set_driver_cs_command += self.spi_cs_pin.pin_number_config
         commands.append(set_driver_cs_command)
         return commands
 
@@ -77,10 +74,11 @@ class Stepper(BaseModel):
     max_position: float = Field(default=np.inf)
 
     _current_position: float = PrivateAttr(default=0)
-    _max_velocity_steps: float = PrivateAttr(default=np.inf)
+    _current_steps: int = PrivateAttr(default=0)
 
     def __init__(self, **data):
         super().__init__(**data)
+        self._current_steps = round((self._current_position - self.min_position) * self.final_steps_per_mm)
 
     @computed_field(return_type=float)
     @cached_property
@@ -110,23 +108,24 @@ class Stepper(BaseModel):
         position_normalized = position - self.min_position
         return int(round(position_normalized * self.final_steps_per_mm))
 
-    def calculate_speed(self, position: float, new_position: float, time: float) -> int:
-        delta_position = np.abs(new_position - position)
-        delta_steps = round(delta_position * self.final_steps_per_mm)
+    def calculate_speed(self, position_steps: int, time: float) -> int:
+        delta_steps = np.abs(position_steps - self._current_steps)
+        print(delta_steps)
         if delta_steps == 0:
             return 0
         steps_per_second = delta_steps / time
         ticks_per_step = 50000 / steps_per_second
-        return int(ticks_per_step)
+        return int(max(ticks_per_step, 1))
 
     def move(self, new_position: float, time: float, relative: bool = False) -> bytearray:
         if relative:
             new_position += self._current_position
         new_position_steps = self.calculate_position(new_position)
-        ticks_per_step = self.calculate_speed(self._current_position, new_position, time)
+        ticks_per_step = self.calculate_speed(new_position_steps, time)
         move_data: bytearray = bytearray()
         move_data += new_position_steps.to_bytes(2, "big")
         move_data += ticks_per_step.to_bytes(3, "big")
         if ticks_per_step != 0: # Because if the speed is 0, the position will not change
             self._current_position = new_position
+            self._current_steps = new_position_steps
         return move_data

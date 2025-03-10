@@ -20,8 +20,8 @@ steppers:
     min_position: -135
     max_position: 135
     driver:
-      step_pin: 1
-      direction_pin: 1
+      step_pin: 31
+      direction_pin: 25
 
   - mm_per_rev: 360
     gear_ratio: 5.428571429

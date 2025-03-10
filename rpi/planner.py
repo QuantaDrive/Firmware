@@ -69,9 +69,9 @@ if __name__ == "__main__":
 
     planner = Planner(controller)
 
-    planner.plan_move((301.5, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
-    print()
-    planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
-    print()
-    planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(25)))
+    planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(90)))
+    # print()
+    # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
+    # print()
+    # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(25)))
 

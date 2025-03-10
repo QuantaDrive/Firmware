@@ -24,6 +24,7 @@ extern struct Move current_move;
 void move_init();
 void move_flush_queue();
 void move_force_stop();
+bool move_queue_not_full();
 void add_move(uint_fast16_t *pos, uint_fast32_t *speed);
 void add_move_single(size_t index, uint_fast16_t pos, uint_fast32_t speed);
 
