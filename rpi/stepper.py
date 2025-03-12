@@ -1,5 +1,6 @@
 from enum import IntEnum
 from functools import cached_property
+from math import floor
 from typing import Optional, List
 
 import numpy as np
@@ -81,14 +82,14 @@ class Stepper(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
+    @computed_field(return_type=int)
+    def _current_position_steps(self):
+        return self.get_steps(self._current_position)
+
     @computed_field(return_type=float)
     @cached_property
     def final_steps_per_mm(self):
         return self.gear_ratio * self.steps_per_rev * self.microsteps / self.mm_per_rev
-
-    @computed_field(return_type=int)
-    def _current_position_steps(self):
-        return self.get_steps(self._current_position)
 
     @computed_field(return_type=int)
     @cached_property
@@ -133,6 +134,31 @@ class Stepper(BaseModel):
         remaining_position = delta_position - position_to_full_speed
         remaining_time = remaining_position / self.max_velocity
         return time_to_full_speed + remaining_time
+
+    def interpolate_position(self, new_position: float, time: float, time_to_move: float, relative: bool = False):
+        """
+        :param new_position: Position to get to
+        :param time: Total time to get to the position
+        :param time_to_move: Time 1 move will take
+        :param relative:
+        :return:
+        """
+        if relative:
+            delta_position = new_position
+        else:
+            delta_position = new_position - self._current_position
+        acceleration = 2 * (delta_position - self._cur_speed * time) / (time ** 2)
+        interpolation_steps = floor(time / time_to_move)
+        interpolation_steps_left = time / time_to_move - interpolation_steps
+        current_position = self._current_position
+        cur_speed = self._cur_speed
+        for i in range(interpolation_steps):
+            current_position += cur_speed * time_to_move + 0.5 * acceleration * time_to_move ** 2
+            cur_speed += acceleration * time_to_move
+            yield current_position
+        time_to_move = time_to_move * interpolation_steps_left
+        current_position += cur_speed * time_to_move + 0.5 * acceleration * time_to_move ** 2
+        yield current_position
 
     def get_steps(self, position: float) -> int:
         return round((position - self.min_position) * self.final_steps_per_mm)

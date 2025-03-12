@@ -44,14 +44,19 @@ class Planner:
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
             # print("Joints: ", np.round(np.degrees(cur_joints), 2))
             # Check moves with the steppers maximum speed/acceleration
+            stepper_longest_move = -1
             ETA = time_to_move
             for j in range(len(self.controller.steppers)):
                 if not self.controller.steppers[j].check_move(np.degrees(cur_joints[j]), time_to_move):
+                    stepper_longest_move = j
                     stepper_ETA = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
                     ETA = max(ETA, stepper_ETA)
                     cur_speed = max(min_speed, self.interpolation_step_length / ETA)
             # Move the steppers and kinematics
-            self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
+            if stepper_longest_move >= 0:
+                self.controller.move_steppers_interpolated(np.degrees(cur_joints), ETA)
+            else:
+                self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
             # Check for acceleration or deceleration
             move_length_left -= self.interpolation_step_length

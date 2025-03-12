@@ -121,6 +121,14 @@ class Controller(BaseModel):
             command += self.steppers[i].move(new_positions[i], time, relative)
         self._move_queue.put(command)
 
+    def move_steppers_interpolated(self, new_positions: List[float], time: float, relative: bool = False):
+        stepper_move_generators = []
+        for i in range(len(self.steppers)):
+            stepper_move_generators.append(self.steppers[i].interpolate_position(new_positions[i], time, 0.1, relative))
+        for positions in zip(*stepper_move_generators):
+            self.move_steppers(positions, 0.1, relative)
+
+
     def move_stepper(self, stepper_id: int, new_position: float, time: float, relative: bool = False):
         command: bytearray = bytearray()
         command += b'\x11'

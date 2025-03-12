@@ -19,8 +19,8 @@ steppers:
     microsteps: 32
     min_position: -135
     max_position: 135
-    max_velocity: 1000
-    max_accel: 20
+    max_velocity: 360
+    max_accel: 10
     driver:
       step_pin: 31
       direction_pin: 25
@@ -51,8 +51,8 @@ steppers:
     microsteps: 32
     min_position: -180
     max_position: 180
-    max_velocity: 1000
-    max_accel: 20
+    max_velocity: 360
+    max_accel: 10
     driver:
       type: GENERIC
       step_pin: 11
@@ -74,8 +74,8 @@ steppers:
     microsteps: 32
     min_position: -180
     max_position: 180
-    max_velocity: 1000
-    max_accel: 20
+    max_velocity: 360
+    max_accel: 10
     driver:
       type: GENERIC
       step_pin: 13
