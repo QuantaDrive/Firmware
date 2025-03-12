@@ -132,11 +132,9 @@ class Arm6DoF(BaseKinematics):
         j0_3_orientation_matrix_transposed = j0_3_dh_matrix[0:3:1,0:3:1].T @ j0_6_reverse_kin_matrix[0:3:1,0:3:1]
 
         # j5 = atan2(sqrt(1 - orientation_33^2), orientation_33)
-        j5_angle = np.atan2(-j0_3_orientation_matrix_transposed[2, 0], np.sqrt(
+        j5_angle_sign = np.atan2(-j0_3_orientation_matrix_transposed[2, 0], np.sqrt(
             j0_3_orientation_matrix_transposed[0, 0] ** 2 + j0_3_orientation_matrix_transposed[1, 0] ** 2))
-        # if np.isclose(j5_angle, 0, atol=1e-5):
-        #     j6_angle -= j4_angle
-        #     j4_angle = 0
+        j5_angle = np.atan2(np.sqrt(1-j0_3_orientation_matrix_transposed[2, 2]**2), j0_3_orientation_matrix_transposed[2, 2]) * np.sign(j5_angle_sign)
         if j5_angle > 0:
             # j4 = atan2(orientation_23, orientation_13)
             j4_angle = np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
@@ -151,6 +149,9 @@ class Arm6DoF(BaseKinematics):
             j4_angle -= np.pi
         else:
             j4_angle += np.pi
+        if np.isclose(j5_angle, 0, atol=1e-5):
+            j6_angle -= j4_angle
+            j4_angle = 0
         return j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle
 
 class Arm6DoFModel(BaseModel):
@@ -167,7 +168,7 @@ if __name__ == "__main__":
         [-90.0, -90.0,   0.0,   0.0],
         [  0.0,  90.0, 224.5,   0.0],
         [  0.0, -90.0,   0.0,   0.0],
-        [  180.0,   0.0,  77.0,   0.0]
+        [  180.0,   0.0,  77.5,   0.0]
     ])
 
     toolframe_matrix = Arm6DoF.transformation_matrix(0, 0, 0, 0, 0, 0)

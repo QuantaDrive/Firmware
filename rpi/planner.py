@@ -82,9 +82,11 @@ if __name__ == "__main__":
 
     planner = Planner(controller)
 
-    planner.plan_move((300, 0, 525, np.radians(0), np.radians(90), np.radians(0)))
+    planner.plan_move((300, 0, 525, np.radians(0), np.radians(0), np.radians(0)))
+    print(planner.kinematic.forward_kinematics([ 0.,    np.radians(2.75), np.radians(68.34),  0.,   np.radians(18.91), -0.  ]))
     print()
     planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(0)))
+    print(planner.kinematic.forward_kinematics([ 0.,   np.radians(20.02), np.radians(67.71),  0.,   -0.,   np.radians(90)  ]))
     # print()
     # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))
     # print()
