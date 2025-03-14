@@ -6,7 +6,7 @@ from typing import Optional, List
 import numpy as np
 from pydantic import BaseModel, Field, PositiveFloat, field_validator, PositiveInt, computed_field, PrivateAttr
 
-from gpio import Gpio, Direction
+from controller import Gpio
 
 class DriverType(IntEnum):
     GENERIC = 1
@@ -32,13 +32,13 @@ class Driver(BaseModel):
                      "enable_pin", "spi_cs_pin", mode="after")
     @classmethod
     def _validate_output_pins(cls, value: Gpio):
-        value.direction = Direction.OUTPUT
+        value.direction = Gpio.Direction.OUTPUT
         return value
 
     @field_validator("diag_fault_pin", mode="after")
     @classmethod
     def _validate_input_pins(cls, value: Gpio):
-        value.direction = Direction.INPUT
+        value.direction = Gpio.Direction.INPUT
         return value
 
     def get_config(self, stepper_id: int) -> List[bytearray]:

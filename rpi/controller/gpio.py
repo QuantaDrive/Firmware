@@ -6,12 +6,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator, field_validator
 
-
-class Direction(IntEnum):
-    INPUT = 0
-    OUTPUT = 1
-
 class Gpio(BaseModel):
+    class Direction(IntEnum):
+        INPUT = 0
+        OUTPUT = 1
+
     number: int = Field(default=31)
     direction: Direction = Field(default=Direction.INPUT)
     inverted: bool = Field(default=False)
@@ -29,7 +28,7 @@ class Gpio(BaseModel):
     @classmethod
     def _validate_direction(cls, value):
         if isinstance(value, str):
-            return Direction[value.upper()]
+            return cls.Direction[value.upper()]
         return value
 
     @model_validator(mode="before")

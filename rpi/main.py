@@ -3,19 +3,16 @@ import time
 import numpy as np
 
 from planner import Planner
-from controller import Controller
 
-controller = Controller.from_config("moveo.yaml")
-controller.connect()
-controller.reset()
-controller.send_config()
-
-input("Bring the arm manually to the home position and press enter to start")
-for i in range(6):
-    controller.set_homed(i)
-    controller.set_position(i, 0)
-
-planner = Planner(controller)
+planner = Planner.from_config("moveo.yaml")
+# planner.controller.connect()
+# planner.controller.reset()
+# planner.controller.send_config()
+#
+# input("Bring the arm manually to the home position and press enter to start")
+# for i in range(6):
+#     planner.controller.set_homed(i)
+#     planner.controller.set_position(i, 0)
 
 print("Start")
 

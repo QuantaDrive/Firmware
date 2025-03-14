@@ -24,6 +24,9 @@ int main() {
         if (tud_cdc_available()) {
         #endif
             uint8_t op_code = stdio_getchar();
+            uint8_t id = stdio_getchar();
+            uint8_t stepper_id = id & 0b00001111;
+            uint8_t command_id = id >> 4;
             switch (op_code) {
             case 0b00000000: {  // reset controller
                 move_force_stop();
@@ -37,7 +40,6 @@ int main() {
                 break;
             }
             case 0b00000001: {  // set step and dir pins
-                uint8_t stepper_id = stdio_getchar();
                 if (stepper_id > DOF) {
                     stdio_getchar();
                     stdio_getchar();
@@ -49,7 +51,6 @@ int main() {
                 break;
             }
             case 0b00000010: {  // set enable and diag/fault pins
-                uint8_t stepper_id = stdio_getchar();
                 if (stepper_id > DOF) {
                     stdio_getchar();
                     stdio_getchar();
@@ -61,7 +62,6 @@ int main() {
                 break;
             }
             case 0b00000011: {  // set spi cs pin and driver type
-                uint8_t stepper_id = stdio_getchar();
                 if (stepper_id > DOF) {
                     stdio_getchar();
                     stdio_getchar();
@@ -76,21 +76,16 @@ int main() {
                 uint_fast16_t position[DOF];
                 uint_fast32_t speed[DOF];
                 for (int i = 0; i < DOF; i++) {
-                    if (stdio_getchar() != 0b00000000) {
-                        //TODO make this better more resistent
-                        break;
-                    }
                     position[i] = stdio_getchar() << 8;
                     position[i] |= stdio_getchar();
                     speed[i] = stdio_getchar() << 16;
                     speed[i] |= stdio_getchar() << 8;
                     speed[i] |= stdio_getchar();
                 }
-                add_move(position, speed);
+                add_move(command_id, position, speed);
                 break;
             }
             case 0b00010001: {  // add movement of specific stepper
-                uint8_t stepper_id = stdio_getchar();
                 if (stepper_id > DOF) {
                     for (int i = 0; i < 5; i++) {
                         stdio_getchar();
@@ -102,7 +97,14 @@ int main() {
                 uint32_t speed = stdio_getchar() << 16;
                 speed |= stdio_getchar() << 8;
                 speed |= stdio_getchar();
-                add_move_single(stepper_id, position, speed);
+                add_move_single(command_id, stepper_id, position, speed);
+                break;
+            }
+            case 0b00000100: {  // dwell
+                uint32_t time = stdio_getchar() << 16;
+                time |= stdio_getchar() << 8;
+                time |= stdio_getchar();
+                add_dwell(command_id, time);
                 break;
             }
             case 0b00010100: {  // home all steppers

@@ -1,5 +1,15 @@
-max_velocity: 25
-max_accel: 2
+move_settings:
+  jog_controller: Gamepad
+  jog_controller_mapping:
+    - X: JOYSTICK_A_Y
+    - Y: JOYSTICK_A_X
+    - Z: DPAD_Y
+    - YAW: DPAD_X
+    - PITCH: JOYSTICK_B_X
+    - ROLL: JOYSTICK_B_Y
+  jog_velocity: 2
+  max_velocity: 25
+  max_accel: 2
 
 kinematics:
     type: 6DOF arm

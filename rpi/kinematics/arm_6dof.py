@@ -4,7 +4,7 @@ import numpy as np
 import sympy as sp
 from pydantic import BaseModel
 
-from kinematics.base_kinematics import BaseKinematics
+from kinematics.base_kinematics import BaseKinematics, BaseKinematicsModel
 
 
 class Arm6DoF(BaseKinematics):
@@ -123,7 +123,7 @@ class Arm6DoF(BaseKinematics):
         j1_angle = thetaA
         j2_angle = thetaB - thetaC
         #TODO check that pi can be gotten from the dh matrix instead of being hardcoded
-        j3_angle = np.pi - thetaD + thetaE
+        j3_angle = np.pi - thetaD - thetaE
 
         j1_dh_matrix = Arm6DoF.dh_transformation_matrix(self.dh_params[0, 0] + j1_angle, self.dh_params[0, 1], self.dh_params[0, 2], self.dh_params[0, 3])
         j2_dh_matrix = Arm6DoF.dh_transformation_matrix(self.dh_params[1, 0] + j2_angle, self.dh_params[1, 1], self.dh_params[1, 2], self.dh_params[1, 3])
@@ -137,12 +137,12 @@ class Arm6DoF(BaseKinematics):
         j5_angle = np.atan2(np.sqrt(1-j0_3_orientation_matrix_transposed[2, 2]**2), j0_3_orientation_matrix_transposed[2, 2]) * np.sign(j5_angle_sign)
         if j5_angle > 0:
             # j4 = atan2(orientation_23, orientation_13)
-            j4_angle = np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
+            j4_angle = - np.atan2(j0_3_orientation_matrix_transposed[1, 2], j0_3_orientation_matrix_transposed[0, 2])
             # j6 = atan2(orientation_32, - orientation_31)
             j6_angle = np.atan2(j0_3_orientation_matrix_transposed[2, 1], - j0_3_orientation_matrix_transposed[2, 0])
         else:
             # j4 = atan2( - orientation_23,  - orientation_13)
-            j4_angle = np.atan2( - j0_3_orientation_matrix_transposed[1, 2], - j0_3_orientation_matrix_transposed[0, 2])
+            j4_angle = - np.atan2( - j0_3_orientation_matrix_transposed[1, 2], - j0_3_orientation_matrix_transposed[0, 2])
             # j6 = atan2( - orientation_32, orientation_31)
             j6_angle = np.atan2( - j0_3_orientation_matrix_transposed[2, 1], j0_3_orientation_matrix_transposed[2, 0])
         if j4_angle > 0:
@@ -154,7 +154,7 @@ class Arm6DoF(BaseKinematics):
             j4_angle = 0
         return j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle
 
-class Arm6DoFModel(BaseModel):
+class Arm6DoFModel(BaseKinematicsModel):
     type: Literal["6DOF arm"]
     dh_params: list[list[float]]
 
@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     arm = Arm6DoF(dh_params)
 
-    x, y, z, yaw, pitch, roll = arm.forward_kinematics((sp.rad(0), sp.rad(0), sp.rad(0), sp.rad(0), sp.rad(0), sp.rad(0)), toolframe_matrix)
+    x, y, z, yaw, pitch, roll = arm.forward_kinematics((sp.rad(0), sp.rad(0), sp.rad(90), sp.rad(0), sp.rad(0), sp.rad(0)), toolframe_matrix)
     print("x: " + str(x))
     print("y: " + str(y))
     print("z: " + str(z))
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     print()
 
     # j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((x, y, z, yaw, pitch, roll), toolframe_matrix)
-    j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((300, 0, 525, np.radians(0), np.radians(0),  np.radians(90)), toolframe_matrix)
+    j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((308.557, 0, 521.354, np.radians(0), np.radians(0),  np.radians(0)), toolframe_matrix)
     print("j1_angle: " + str(np.degrees(j1_angle)))
     print("j2_angle: " + str(np.degrees(j2_angle)))
     print("j3_angle: " + str(np.degrees(j3_angle)))

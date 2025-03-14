@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Literal
 
 import sympy as sp
+from pydantic import BaseModel
+
 
 class BaseKinematics(ABC):
+    # These need to be all lowercase
     forward_kinematics_joint_names: Tuple[str] = ()
     inverse_kinematics_coordinate_names:  Tuple[str] = ()
 
@@ -31,4 +34,10 @@ class BaseKinematics(ABC):
 
     @abstractmethod
     def inverse_kinematics(self, coordinates: Tuple[float | int], toolframe_matrix=sp.eye(4)):
+        pass
+
+class BaseKinematicsModel(BaseModel):
+    type: Literal[""]
+
+    def get_kinematics(self):
         pass

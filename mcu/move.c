@@ -2,6 +2,7 @@
 #include "stepper.h"
 
 queue_t move_queue;
+queue_t move_done_queue;
 struct Move current_move;
 
 /**
@@ -17,14 +18,17 @@ struct Move current_move;
 void _check_move() {
     // Check if any motors need to move
     for (size_t stepper_id = 0; stepper_id < DOF; stepper_id++) {
+        if (current_move.dwell && current_move.stepper_status != 0) {
+            current_move.time[0]--;
+            if (current_move.time[0] == 0) {
+                current_move.stepper_status = 0;
+            }
+        }
         if (current_move.speed[stepper_id] == 0 || (current_move.stepper_status & (1 << stepper_id)) == 0) {
             stepper_set_status(stepper_id, STOPPED);
             current_move.stepper_status &= ~(1 << stepper_id);
             continue;
         }
-        // uint_fast32_t *current_time = &current_move.time[stepper_id];
-        // (*current_time)++;
-        // *current_time %= current_move.speed[stepper_id];
         current_move.time[stepper_id]++;
         current_move.time[stepper_id] %= current_move.speed[stepper_id];
         if (current_move.time[stepper_id] != 0) {
@@ -90,10 +94,12 @@ bool move_queue_not_full() {
     return !queue_is_full(&move_queue);
 }
 
-void add_move(uint_fast16_t *pos, uint_fast32_t *speed) {
+void add_move(uint8_t command_id, uint_fast16_t *pos, uint_fast32_t *speed) {
     // The status of the motors (0 = stopped, 1 = moving)
     // Set all the bits for the steppers to moving
     struct Move move;
+    move.command_id = command_id;
+    move.dwell = false;
     move.stepper_status = (1 << DOF) - 1;
     for (size_t i = 0; i < DOF; i++) {
         move.time[i] = 0;
@@ -103,10 +109,12 @@ void add_move(uint_fast16_t *pos, uint_fast32_t *speed) {
     queue_add_blocking(&move_queue, &move);
 }
 
-void add_move_single(size_t index, uint_fast16_t pos, uint_fast32_t speed) {
+void add_move_single(uint8_t command_id, uint8_t index, uint_fast16_t pos, uint_fast32_t speed) {
     // The status of the motors (0 = stopped, 1 = moving)
     // Set all the bits for the steppers to moving
     struct Move move;
+    move.command_id = command_id;
+    move.dwell = false;
     move.stepper_status = (1 << DOF) - 1;
     for (size_t i = 0; i < DOF; i++) {
         move.time[i] = 0;
@@ -116,4 +124,12 @@ void add_move_single(size_t index, uint_fast16_t pos, uint_fast32_t speed) {
     move.pos[index] = pos;
     move.speed[index] = speed;
     queue_add_blocking(&move_queue, &move);
+}
+
+void add_dwell(uint8_t command_id, uint_fast32_t time) {
+    struct Move move;
+    move.command_id = command_id;
+    move.dwell = true;
+    move.time[0] = time;
+    move.stepper_status = 1;
 }
