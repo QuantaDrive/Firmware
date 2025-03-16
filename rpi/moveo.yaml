@@ -5,8 +5,8 @@ move_settings:
     - Y: JOYSTICK_A_X
     - Z: DPAD_Y
     - YAW: DPAD_X
-    - PITCH: JOYSTICK_B_X
-    - ROLL: JOYSTICK_B_Y
+    - PITCH: JOYSTICK_B_Y
+    - ROLL: JOYSTICK_B_X
   jog_velocity: 2
   max_velocity: 25
   max_accel: 2
@@ -21,6 +21,9 @@ kinematics:
       - [  0.0, -90.0,   0.0,   0.0]
       - [180.0,   0.0,  77.5,   0.0]
 
+shift_registers:
+  - name: stepper_dir
+    latch_pin: 4
 
 steppers:
   - mm_per_rev: 360
@@ -33,7 +36,7 @@ steppers:
     max_accel: 10
     driver:
       step_pin: 31
-      direction_pin: 25
+      direction_pin: stepper_dir:0
 
   - mm_per_rev: 360
     gear_ratio: 5.428571429
@@ -43,7 +46,7 @@ steppers:
     max_position: 90
     driver:
       step_pin: 14
-      direction_pin: 15
+      direction_pin: stepper_dir:1
 
   - mm_per_rev: 360
     gear_ratio: 20
@@ -53,7 +56,7 @@ steppers:
     max_position: 120
     driver:
       step_pin: 10
-      direction_pin: 21
+      direction_pin: stepper_dir:2
 
   - mm_per_rev: 360
     gear_ratio: 1
@@ -66,7 +69,7 @@ steppers:
     driver:
       type: GENERIC
       step_pin: 11
-      direction_pin: 20
+      direction_pin: stepper_dir:3
 
   - mm_per_rev: 360
     gear_ratio: 4.4
@@ -76,7 +79,7 @@ steppers:
     max_position: 90
     driver:
       step_pin: 12
-      direction_pin: 19
+      direction_pin: stepper_dir:4
 
   - mm_per_rev: 360
     gear_ratio: 1
@@ -89,4 +92,4 @@ steppers:
     driver:
       type: GENERIC
       step_pin: 13
-      direction_pin: 18
+      direction_pin: stepper_dir:5

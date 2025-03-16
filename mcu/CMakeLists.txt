@@ -38,19 +38,21 @@ add_executable( robotic_arm_firmware
         robotic_arm_firmware.c
         stepper.c
         move.c
+        pin.c
         )
 
 pico_set_program_name(robotic_arm_firmware "robotic_arm_firmware")
 pico_set_program_version(robotic_arm_firmware "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(robotic_arm_firmware 0)
-pico_enable_stdio_usb(robotic_arm_firmware 1)
+pico_enable_stdio_uart(robotic_arm_firmware 1)
+pico_enable_stdio_usb(robotic_arm_firmware 0)
 
 # Add the standard library to the build
 target_link_libraries(robotic_arm_firmware
         pico_stdlib
         pico_multicore
+        hardware_spi
         )
 
 # Add the standard include files to the build

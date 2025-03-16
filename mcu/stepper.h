@@ -1,4 +1,5 @@
 #include "config.h"
+#include "pin.h"
 
 #include "pico/stdlib.h"
 
@@ -28,20 +29,20 @@ struct Stepper
     enum EDriverType driver_type;
     // all the pin parameters have the top bit set if inverted
     // and the bottom 7 bits are the pin number
-    uint_fast8_t step_pin;
-    uint_fast8_t dir_pin;
-    uint_fast8_t enable_pin;
-    uint_fast8_t diag_fault_pin;
-    uint_fast8_t spi_cs_pin;
+    pin step_pin;
+    pin dir_pin;
+    pin enable_pin;
+    pin diag_fault_pin;
+    pin spi_cs_pin;
 };
 
 extern struct Stepper steppers[DOF];
 
 void stepper_init();
 void create_stepper(size_t stepper_id);
-void stepper_set_step_dir_pins(size_t stepper_id, uint_fast8_t step_pin, uint_fast8_t dir_pin);
-void stepper_set_enable_fault_pins(size_t stepper_id, uint_fast8_t enable_pin, uint_fast8_t diag_fault_pin);
-void stepper_set_cs_pin_driver(size_t stepper_id, uint_fast8_t cs_pin, enum EDriverType driver_type);
+void stepper_set_step_dir_pins(size_t stepper_id, pin step_pin, pin dir_pin);
+void stepper_set_enable_fault_pins(size_t stepper_id, pin enable_pin, pin diag_fault_pin);
+void stepper_set_cs_pin_driver(size_t stepper_id, pin cs_pin, enum EDriverType driver_type);
 void stepper_set_position(size_t stepper_id, uint_fast16_t position);
 
 void stepper_step(size_t stepper_id);

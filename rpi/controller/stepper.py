@@ -6,7 +6,8 @@ from typing import Optional, List
 import numpy as np
 from pydantic import BaseModel, Field, PositiveFloat, field_validator, PositiveInt, computed_field, PrivateAttr
 
-from controller import Gpio
+from controller.pin import pin_types, GpioPin, Direction, validate_pin_type
+
 
 class DriverType(IntEnum):
     GENERIC = 1
@@ -15,49 +16,57 @@ class DriverType(IntEnum):
 
 class Driver(BaseModel):
     type: DriverType = Field(default=DriverType.GENERIC)
-    step_pin: Gpio
-    direction_pin: Gpio #IMPORTANT this pin has to be unique because the mcu reads the current state of the pin to see direction
-    enable_pin: Optional[Gpio] = Field(default=None)
-    diag_fault_pin: Optional[Gpio] = Field(default=None)
-    spi_cs_pin: Optional[Gpio] = Field(default=Gpio())
+    step_pin: pin_types
+    direction_pin: pin_types    #IMPORTANT this pin has to be unique because the mcu reads the current state of the pin to see direction
+    enable_pin: Optional[pin_types] = Field(default=None)
+    diag_fault_pin: Optional[pin_types] = Field(default=None)
+    spi_cs_pin: pin_types = Field(default=GpioPin(type="GPIO"))
 
     @field_validator("type", mode="before")
     @classmethod
-    def _validate_type(cls, value):
+    def _validate_driver_type(cls, value):
         if isinstance(value, str):
             return DriverType[value.upper()]
+        return value
+
+    @field_validator("step_pin", "direction_pin", "enable_pin",
+                     "diag_fault_pin", "spi_cs_pin", mode="before")
+    @classmethod
+    def _validate_pin(cls, value: Optional[str | int]):
+        if value:
+            return validate_pin_type(value)
         return value
 
     @field_validator("step_pin", "direction_pin",
                      "enable_pin", "spi_cs_pin", mode="after")
     @classmethod
-    def _validate_output_pins(cls, value: Gpio):
-        value.direction = Gpio.Direction.OUTPUT
+    def _validate_output_pins(cls, value: pin_types):
+        value.direction = Direction.OUTPUT
         return value
 
     @field_validator("diag_fault_pin", mode="after")
     @classmethod
-    def _validate_input_pins(cls, value: Gpio):
-        value.direction = Gpio.Direction.INPUT
+    def _validate_input_pins(cls, value: pin_types):
+        value.direction = Direction.INPUT
         return value
 
     def get_config(self, stepper_id: int) -> List[bytearray]:
         commands = []
         set_step_dir_command: bytearray = bytearray()
-        set_step_dir_command += b"\x01"
+        set_step_dir_command += b"\x21"
         set_step_dir_command += stepper_id.to_bytes(1, "big")
         set_step_dir_command += self.step_pin.pin_number_config
         set_step_dir_command += self.direction_pin.pin_number_config
         commands.append(set_step_dir_command)
         if self.enable_pin is not None and self.diag_fault_pin is not None:
             set_enable_fault_command: bytearray = bytearray()
-            set_enable_fault_command += b"\x02"
+            set_enable_fault_command += b"\x22"
             set_enable_fault_command += stepper_id.to_bytes(1, "big")
             set_enable_fault_command += self.enable_pin.pin_number_config
             set_enable_fault_command += self.diag_fault_pin.pin_number_config
             commands.append(set_enable_fault_command)
         set_driver_cs_command: bytearray = bytearray()
-        set_driver_cs_command += b"\x03"
+        set_driver_cs_command += b"\x23"
         set_driver_cs_command += stepper_id.to_bytes(1, "big")
         set_driver_cs_command += self.type.to_bytes(1, "big")
         set_driver_cs_command += self.spi_cs_pin.pin_number_config

@@ -61,6 +61,18 @@
         "**/*.REXXINC*{,/*}": "rexx",
         "*.rex": "rexx",
         "*.rexx": "rexx",
-        "stdio_usb.h": "c"
+        "stdio_usb.h": "c",
+        "*.tcc": "c",
+        "charconv": "c",
+        "optional": "c",
+        "format": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "array": "c",
+        "functional": "c",
+        "regex": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
     }
 }

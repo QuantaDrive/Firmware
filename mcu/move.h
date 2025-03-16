@@ -20,6 +20,8 @@ struct Move {
     uint_fast32_t speed[DOF];
 };
 
+extern bool move_cache_enabled;
+extern uint64_t move_reminder_time;
 extern queue_t move_queue;
 extern queue_t move_done_queue;
 extern struct Move current_move;

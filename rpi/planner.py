@@ -39,6 +39,12 @@ class Planner:
 
     def set_move_mode(self, move_mode: Planner.MoveMode):
         self.move_mode = move_mode
+        if move_mode == Planner.MoveMode.AUTO:
+            self.interpolation_step_length = 0.1
+            self.controller.set_move_mode(Controller.MoveMode.CACHED)
+        elif move_mode == Planner.MoveMode.MANUAL:
+            self.interpolation_step_length = 0.05
+            self.controller.set_move_mode(Controller.MoveMode.REALTIME)
         self.move_mode_changed = True
 
     def run(self):
@@ -52,8 +58,13 @@ class Planner:
             elif self.move_mode == Planner.MoveMode.MANUAL:
                 while not self.move_mode_changed:
                     coordinates = self.jog_controller.get_move()
-                    time_between_moves = self.plan_move(coordinates, jog=True)
-                    time.sleep(max(0, time_between_moves - 0.5))
+                    coordinates = [coordinates[0], coordinates[1], coordinates[2],
+                                   np.radians(coordinates[3]), np.radians(coordinates[4]), np.radians(coordinates[5])]
+                    coordinates /= 2
+                    if sum(coordinates) == 0:
+                        time.sleep(0.25)
+                        continue
+                    self.plan_move(coordinates, jog=True)
             self.move_mode_changed = False
 
     def plan_move(self, coordinates: Tuple[float | int], speed: float = 0,
@@ -64,18 +75,20 @@ class Planner:
 
         start_coordinates = self.kinematic.coordinates
         end_coordinates = coordinates
-        if relative:
+        if relative or jog:
             end_coordinates += start_coordinates
 
         move_length = self.kinematic.get_length(start_coordinates, end_coordinates)
+        if move_length == 0:
+            return False
         interpolation_steps = int(move_length / self.interpolation_step_length)
 
         # Take the starting speed same as the interpolation step length * 2
-        # So the first move is 0.5 second long
+        # So the first move is 0.2 second long
         min_speed = self.interpolation_step_length * 2
         cur_speed = min_speed
         if jog:
-            cur_speed = self.controller.jog_velocity
+            cur_speed = self.controller.move_settings.jog_velocity
             acceleration = 0
 
         time_to_move = self.interpolation_step_length / cur_speed
@@ -86,11 +99,15 @@ class Planner:
 
         accelerating = True
         braking_distance = 0
-        total_time_moved = 0
         for i in range(interpolation_steps):
+            if self.move_mode_changed:
+                return False
             # Calculate the next coordinates
             cur_coordinates += move_per_step
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
+            if np.isnan(cur_joints).any():
+                print(cur_coordinates)
+                return False
             # print("Joints: ", np.round(np.degrees(cur_joints), 2))
             # Check moves with the steppers maximum speed/acceleration
             stepper_longest_move = -1
@@ -106,7 +123,6 @@ class Planner:
                 self.controller.move_steppers_interpolated(np.degrees(cur_joints), ETA)
             else:
                 self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
-                total_time_moved += time_to_move
             self.kinematic.coordinates = cur_coordinates
             # Check for acceleration or deceleration
             if acceleration == 0:
@@ -123,8 +139,8 @@ class Planner:
                 cur_speed -= acceleration * time_to_move
                 cur_speed = max(min_speed, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
-        return total_time_moved
 
+        return True
 
 if __name__ == "__main__":
     controller = Controller.from_config("moveo.yaml")

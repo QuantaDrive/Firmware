@@ -8,7 +8,7 @@ from inputs import DeviceManager, WIN, EVENT_TYPES, EVENT_MAP
 from controller import MoveSettings
 from endpoints.base_jog_controller import BaseJogController
 
-
+# inputs DeviceManager with refresh support
 class DeviceManagerRefresh(DeviceManager):
     def __init__(self):
         self.codes = {key: dict(value) for key, value in EVENT_MAP}
@@ -88,6 +88,9 @@ class Gamepad(BaseJogController):
                 if axis.upper() in mapping:
                     self._controls_mapping_axis_id[coordinate_names.index(axis)] = self.Buttons[mapping[axis.upper()].upper()]
 
+    def get_button_value(self, button_id: Buttons):
+        return self._button_values[button_id]
+
     def get_move(self):
         return [self._button_values[button_id] for button_id in self._controls_mapping_axis_id]
 
@@ -132,7 +135,7 @@ class Gamepad(BaseJogController):
                             self._button_values[self.Buttons.DPAD_X] = value
                             continue
                         elif event.code == 'ABS_HAT0Y':
-                            self._button_values[self.Buttons.DPAD_Y] = value
+                            self._button_values[self.Buttons.DPAD_Y] = - value
                             continue
                         if event.code.endswith(('X', 'Y')):
                             if abs(value) < self.deadzone:
@@ -147,11 +150,11 @@ class Gamepad(BaseJogController):
                         if event.code == 'ABS_X':
                             self._button_values[self.Buttons.JOYSTICK_A_X] = value
                         elif event.code == 'ABS_Y':
-                            self._button_values[self.Buttons.JOYSTICK_A_Y] = value
+                            self._button_values[self.Buttons.JOYSTICK_A_Y] = - value
                         elif event.code == 'ABS_RX':
                             self._button_values[self.Buttons.JOYSTICK_B_X] = value
                         elif event.code == 'ABS_RY':
-                            self._button_values[self.Buttons.JOYSTICK_B_Y] = value
+                            self._button_values[self.Buttons.JOYSTICK_B_Y] = - value
                         elif event.code == 'ABS_Z':
                             self._button_values[self.Buttons.TRIGGER_LEFT] = value
                         elif event.code == 'ABS_RZ':
@@ -165,7 +168,7 @@ class GamepadJogController(MoveSettings):
 
 
 if __name__ == "__main__":
-    gamepad = Gamepad()
+    gamepad = Gamepad([])
     while True:
         print(gamepad)
         time.sleep(0.5)

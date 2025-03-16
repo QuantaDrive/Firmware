@@ -1,6 +1,8 @@
 #include "move.h"
 #include "stepper.h"
 
+bool move_cache_enabled = true;
+uint64_t move_reminder_time = 500;
 queue_t move_queue;
 queue_t move_done_queue;
 struct Move current_move;
@@ -58,15 +60,22 @@ void _check_move() {
 }
 
 void _move_queue_loop() {
-    gpio_set_function_masked(1 << 28, GPIO_FUNC_SIO);
-    gpio_set_dir_out_masked(1 << 28);
     uint64_t start = time_us_64();
+    uint64_t last_move_reminder = time_us_64();
     while (true) {
         if (time_us_64() - start >= US_PER_TICK) {
             start = time_us_64();
-            gpio_set_mask(1 << 28);
             _check_move();
-            gpio_clr_mask(1 << 28);
+            if (time_us_64() - last_move_reminder >= 150) {
+                if (move_cache_enabled && queue_get_level(&move_queue) < 2) {                   
+                    //stdio_putchar_raw(0xFF); 
+                    last_move_reminder = time_us_64();
+                } else if (queue_is_empty(&move_queue)) {
+                    //stdio_putchar_raw(0xFF); 
+                    last_move_reminder = time_us_64();
+                }
+                
+            }
         }
     }
 }
@@ -91,6 +100,9 @@ void move_force_stop() {
 }
 
 bool move_queue_not_full() {
+    if (!move_cache_enabled) {
+        return queue_is_empty(&move_queue);
+    }
     return !queue_is_full(&move_queue);
 }
 
