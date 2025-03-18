@@ -43,7 +43,7 @@ class Pin(BaseModel):
     def pin_number_config(self) -> bytes:
         pass
 
-class GpioPin(Pin, Gpio, ABC):
+class GpioPin(Gpio, Pin, ABC):
     type: Literal["GPIO"]
 
     @property
@@ -59,7 +59,7 @@ class MultiplexerPin(Pin, ABC):
 
     @property
     def pin_number_config(self) -> bytes:
-        return int(1 << 6 + self.inverted << 5 + self.mux_id << 3 + self.mux_address).to_bytes(1, "big")
+        return int((1 << 6) + (self.inverted << 5) + (self.mux_id << 3) + self.mux_address).to_bytes(1, "big")
 
 
 class ShiftRegisterPin(Pin, ABC):
@@ -74,4 +74,4 @@ class ShiftRegisterPin(Pin, ABC):
 
     @property
     def pin_number_config(self) -> bytes:
-        return int(1 << 7 + self.inverted << 5 + self.sr_id << 3 + self.sr_address).to_bytes(1, "big")
+        return int((1 << 7) + (self.inverted << 5) + (self.sr_id << 3) + self.sr_address).to_bytes(1, "big")

@@ -23,19 +23,28 @@ kinematics:
 
 shift_registers:
   - name: stepper_dir
-    latch_pin: 4
+    latch_pin: 14
+  - name: stepper_en
+    latch_pin: 15
+    offset: 1
+
+manual_pins:
+  - pin: 10
+  - pin: 11
+  - pin: 12
 
 steppers:
   - mm_per_rev: 360
     gear_ratio: 9.8
     steps_per_rev: 200
-    microsteps: 32
+    microsteps: 8
     min_position: -135
     max_position: 135
     max_velocity: 360
     max_accel: 10
     driver:
-      step_pin: 31
+      enable_pin: ~stepper_en:0
+      step_pin: 18
       direction_pin: stepper_dir:0
 
   - mm_per_rev: 360
@@ -45,51 +54,54 @@ steppers:
     min_position: -90
     max_position: 90
     driver:
-      step_pin: 14
+      enable_pin: ~stepper_en:1
+      step_pin: 22
       direction_pin: stepper_dir:1
 
   - mm_per_rev: 360
     gear_ratio: 20
     steps_per_rev: 200
-    microsteps: 32
+    microsteps: 8
     min_position: 0
     max_position: 120
     driver:
-      step_pin: 10
+      enable_pin: ~stepper_en:2
+      step_pin: 16
       direction_pin: stepper_dir:2
 
   - mm_per_rev: 360
     gear_ratio: 1
     steps_per_rev: 200
-    microsteps: 32
+    microsteps: 8
     min_position: -180
     max_position: 180
     max_velocity: 360
     max_accel: 10
     driver:
-      type: GENERIC
-      step_pin: 11
+      enable_pin: ~stepper_en:3
+      step_pin: 17
       direction_pin: stepper_dir:3
 
   - mm_per_rev: 360
     gear_ratio: 4.4
     steps_per_rev: 200
-    microsteps: 32
+    microsteps: 8
     min_position: -90
     max_position: 90
     driver:
-      step_pin: 12
+      enable_pin: ~stepper_en:4
+      step_pin: 21
       direction_pin: stepper_dir:4
 
   - mm_per_rev: 360
     gear_ratio: 1
     steps_per_rev: 400
-    microsteps: 32
+    microsteps: 8
     min_position: -180
     max_position: 180
     max_velocity: 360
     max_accel: 10
     driver:
-      type: GENERIC
-      step_pin: 13
+      enable_pin: ~stepper_en:5
+      step_pin: 20
       direction_pin: stepper_dir:5

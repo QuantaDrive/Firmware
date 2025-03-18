@@ -19,5 +19,5 @@ class ShiftRegister(BaseModel):
         command = bytearray()
         command += b'\x25'
         command += (self.offset << 2 + self.id).to_bytes(1, "big")
-        command += self.latch_pin.to_bytes(1, "big")
+        command += self.latch_pin.pin_number_config
         return command

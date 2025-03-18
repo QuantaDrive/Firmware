@@ -35,6 +35,7 @@ int main() {
                 move_cache_enabled = true;
                 move_force_stop();
                 stepper_init();
+                pin_clear();
                 // Flush input buffer
                 #ifndef DEBUG
                 while (tud_cdc_available()) {
@@ -184,6 +185,11 @@ int main() {
                 shift_register.latch = stdio_getchar();
                 shift_register.offset = offset;
                 shift_register_init(&shift_register, shift_register_id);
+                break;
+            }
+            case 0b00100111: {  // configure manual gpio pin
+                uint8_t pin = stdio_getchar();
+                pin_output_init(pin);
                 break;
             }
             case 0b00111100: {  // set cache mode

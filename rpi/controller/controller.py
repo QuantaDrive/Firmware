@@ -18,7 +18,7 @@ from kinematics import kinematic_types
 from endpoints import jog_controller_types
 from controller import Stepper
 from controller.pin import (pin_types, pin_set_lookup_tables, validate_pin_type,
-                            Multiplexer, ShiftRegister, Direction)
+                            Multiplexer, ShiftRegister, Direction, ManualPin)
 
 
 class Controller(BaseModel):
@@ -36,7 +36,7 @@ class Controller(BaseModel):
     multiplexers: List[Multiplexer] = Field(default=[], max_length=4)
     shift_registers: List[ShiftRegister] = Field(default=[], max_length=4)
     steppers: List[Stepper] = Field(default=[])
-    gpios: List[pin_types] = Field(default=[])
+    manual_pins: List[ManualPin] = Field(default=[])
 
     move_settings: jog_controller_types = Field(..., discriminator="jog_controller")
 
@@ -64,14 +64,6 @@ class Controller(BaseModel):
             shift_registers[value[i].name] = i
         pin_set_lookup_tables(shift_registers=shift_registers)
         return value
-
-    @field_validator("gpios", mode="before")
-    @classmethod
-    def _validate_pins(cls, value: List):
-        pins = []
-        for pin in value:
-            pins.append(validate_pin_type(pin))
-        return pins
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -222,6 +214,11 @@ class Controller(BaseModel):
         for i in range(len(self.shift_registers)):
             command = self.shift_registers[i].get_config()
             self._command_queue.put(self.Command(1, command))
+        for i in range(len(self.manual_pins)):
+            commands = self.manual_pins[i].get_config()
+            self._command_queue.put(self.Command(1, commands[0]))
+            if len(commands) > 1:
+                self._command_queue.put(self.Command(2, commands[1]))
         for i in range(len(self.steppers)):
             for command in self.steppers[i].get_config(i):
                 self._command_queue.put(self.Command(1, command))
@@ -237,8 +234,7 @@ class Controller(BaseModel):
         elif mode == Controller.MoveMode.REALTIME:
             self._move_queue.maxsize = 1
         command: bytearray = bytearray()
-        command += b'\x1C'
-        command += b'\x00'
+        command += b'\x3C'
         command += mode.to_bytes(1, "big")
         self._command_queue.put(self.Command(0, command))
         self._move_thread_pause = False

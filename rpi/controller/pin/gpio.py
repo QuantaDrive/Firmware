@@ -29,4 +29,4 @@ class Gpio(BaseModel):
 
     @property
     def pin_number_config(self) -> bytes:
-        return int(self.inverted << 5 + self.number).to_bytes(1, "big")
+        return int((self.inverted << 5) + self.number).to_bytes(1, "big")

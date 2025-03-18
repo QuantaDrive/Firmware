@@ -58,12 +58,18 @@ class Driver(BaseModel):
         set_step_dir_command += self.step_pin.pin_number_config
         set_step_dir_command += self.direction_pin.pin_number_config
         commands.append(set_step_dir_command)
-        if self.enable_pin is not None and self.diag_fault_pin is not None:
+        if self.enable_pin is not None or self.diag_fault_pin is not None:
             set_enable_fault_command: bytearray = bytearray()
             set_enable_fault_command += b"\x22"
             set_enable_fault_command += stepper_id.to_bytes(1, "big")
-            set_enable_fault_command += self.enable_pin.pin_number_config
-            set_enable_fault_command += self.diag_fault_pin.pin_number_config
+            if self.enable_pin is not None:
+                set_enable_fault_command += self.enable_pin.pin_number_config
+            else:
+                set_enable_fault_command += GpioPin(type="GPIO").pin_number_config
+            if self.diag_fault_pin is not None:
+                set_enable_fault_command += self.diag_fault_pin.pin_number_config
+            else:
+                set_enable_fault_command += GpioPin(type="GPIO").pin_number_config
             commands.append(set_enable_fault_command)
         set_driver_cs_command: bytearray = bytearray()
         set_driver_cs_command += b"\x23"

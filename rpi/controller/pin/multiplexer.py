@@ -41,8 +41,8 @@ class Multiplexer(BaseModel):
             command += (self.id + 4).to_bytes(1, "big")
         else:
             command += self.id.to_bytes(1, "big")
-        command += self.data_pin.to_bytes(1, "big")
-        command += self.enable_pin.to_bytes(1, "big")
+        command += self.data_pin.pin_number_config
+        command += self.enable_pin.pin_number_config
         for pin in self.address_pins:
-            command += pin.to_bytes(1, "big")
+            command += pin.pin_number_config
         return command

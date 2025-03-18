@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from planner import Planner
@@ -16,20 +18,20 @@ print("Start")
 
 planner.plan_move((300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)))
 input("Press enter to continue")
-# planner.plan_move((300, 0, 575, np.radians(0), np.radians(0),  np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((300, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((350, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
-# planner.plan_move((300, 0, 525, np.radians(0), np.radians(0), np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((300, 0, 525, np.radians(0), np.radians(0), np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)))
-# input("Press enter to continue")
-# planner.plan_move((300, 0, 525, np.radians(0), np.radians(0),  np.radians(90)))
+# # planner.plan_move((300, 0, 575, np.radians(0), np.radians(0),  np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((300, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((350, 0, 575, np.radians(0), np.radians(90), np.radians(0)))
+# # planner.plan_move((300, 0, 525, np.radians(0), np.radians(0), np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((300, 0, 525, np.radians(0), np.radians(0), np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)))
+# # input("Press enter to continue")
+# # planner.plan_move((300, 0, 525, np.radians(0), np.radians(0),  np.radians(90)))
 
 print("Done calculating")
 planner.set_move_mode(Planner.MoveMode.MANUAL)

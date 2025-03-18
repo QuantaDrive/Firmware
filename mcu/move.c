@@ -68,10 +68,10 @@ void _move_queue_loop() {
             _check_move();
             if (time_us_64() - last_move_reminder >= 150) {
                 if (move_cache_enabled && queue_get_level(&move_queue) < 2) {                   
-                    //stdio_putchar_raw(0xFF); 
+                    stdio_putchar_raw(0xFF); 
                     last_move_reminder = time_us_64();
                 } else if (queue_is_empty(&move_queue)) {
-                    //stdio_putchar_raw(0xFF); 
+                    stdio_putchar_raw(0xFF); 
                     last_move_reminder = time_us_64();
                 }
                 

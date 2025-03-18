@@ -60,7 +60,6 @@ class Planner:
                     coordinates = self.jog_controller.get_move()
                     coordinates = [coordinates[0], coordinates[1], coordinates[2],
                                    np.radians(coordinates[3]), np.radians(coordinates[4]), np.radians(coordinates[5])]
-                    coordinates /= 2
                     if sum(coordinates) == 0:
                         time.sleep(0.25)
                         continue
@@ -81,7 +80,7 @@ class Planner:
         move_length = self.kinematic.get_length(start_coordinates, end_coordinates)
         if move_length == 0:
             return False
-        interpolation_steps = int(move_length / self.interpolation_step_length)
+        interpolation_steps = max(int(move_length / self.interpolation_step_length), 1)
 
         # Take the starting speed same as the interpolation step length * 2
         # So the first move is 0.2 second long
