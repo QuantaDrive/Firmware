@@ -10,6 +10,8 @@ from kinematics.base_kinematics import BaseKinematics, BaseKinematicsModel
 class Arm6DoF(BaseKinematics):
     forward_kinematics_joint_names = ("theta1", "theta2", "theta3", "theta4", "theta5", "theta6")
     inverse_kinematics_coordinate_names = ("x", "y", "z", "yaw", "pitch", "roll")
+    gcode_coordinate_names = ("x", "y", "z", "i", "j", "k")
+
 
     def __init__(self, dh_params):
         self.dh_params = np.array([

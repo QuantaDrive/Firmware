@@ -9,6 +9,7 @@ class BaseKinematics(ABC):
     # These need to be all lowercase
     forward_kinematics_joint_names: Tuple[str] = ()
     inverse_kinematics_coordinate_names:  Tuple[str] = ()
+    gcode_coordinate_names: Tuple[str] = ()
 
     _cur_coordinates: Tuple[float | int] = ()
 

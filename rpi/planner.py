@@ -9,17 +9,13 @@ import numpy as np
 from controller import Controller
 from kinematics.base_kinematics import BaseKinematics
 from endpoints.base_jog_controller import BaseJogController
+from parsers.program import Program
+
 
 class Planner:
     class MoveMode(IntEnum):
         AUTO = 0
         MANUAL = 1
-
-    class ProgramLine:
-        def __init__(self, coordinates, speed, relative = False):
-            self.coordinates = coordinates
-            self.speed = speed
-            self.relative = relative
 
     # Interpolate the move per step of X mm or degrees
     interpolation_step_length: float = 0.1
@@ -31,7 +27,7 @@ class Planner:
         self.kinematic: Type[BaseKinematics] = controller.kinematic_settings.get_kinematics()
         self.jog_controller: Type[BaseJogController] = controller.move_settings.get_jog_controller()
         self.jog_controller.config_coordinate_names(self.kinematic.inverse_kinematics_coordinate_names)
-        self.program: List[Planner.ProgramLine] = []
+        self.program: Program = None
 
     @classmethod
     def from_config(cls, config_file):
@@ -51,10 +47,12 @@ class Planner:
         while True:
             if self.move_mode == Planner.MoveMode.AUTO:
                 while not self.move_mode_changed:
-                    for line in self.program:
-                        self.plan_move(line.coordinates, line.speed, line.relative)
-                    if len(self.program) == 0:
+                    if self.program is None:
                         time.sleep(0.1)
+                        continue
+                    for line in self.program.lines:
+                        self.plan_move(line.coordinates, line.speed, line.relative)
+                    time.sleep(0.1)
             elif self.move_mode == Planner.MoveMode.MANUAL:
                 while not self.move_mode_changed:
                     coordinates = self.jog_controller.get_move()
