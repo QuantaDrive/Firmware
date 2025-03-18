@@ -35,7 +35,7 @@ def validate_pin_type(value: str | int) -> dict:
     else:
         raise ValueError(f"Unknown pin type {name}")
 
-class Pin(BaseModel):
+class Pin(BaseModel, ABC):
     type: Literal[""]
 
     @property
@@ -43,14 +43,14 @@ class Pin(BaseModel):
     def pin_number_config(self) -> bytes:
         pass
 
-class GpioPin(Gpio, Pin, ABC):
+class GpioPin(Gpio, Pin):
     type: Literal["GPIO"]
 
     @property
     def pin_number_config(self) -> bytes:
         return super().pin_number_config
 
-class MultiplexerPin(Pin, ABC):
+class MultiplexerPin(Pin):
     type: Literal["Multiplexer"]
     direction: Direction = Field(default=Direction.INPUT)
     inverted: bool = Field(default=False)
@@ -62,7 +62,7 @@ class MultiplexerPin(Pin, ABC):
         return int((1 << 6) + (self.inverted << 5) + (self.mux_id << 3) + self.mux_address).to_bytes(1, "big")
 
 
-class ShiftRegisterPin(Pin, ABC):
+class ShiftRegisterPin(Pin):
     type: Literal["Shift-Register"]
     inverted: bool = Field(default=False)
     sr_id: int = Field(ge=0, le=3)

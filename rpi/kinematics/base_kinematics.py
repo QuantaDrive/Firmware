@@ -9,12 +9,12 @@ class BaseKinematics(ABC):
     # These need to be all lowercase
     forward_kinematics_joint_names: Tuple[str] = ()
     inverse_kinematics_coordinate_names:  Tuple[str] = ()
-    gcode_coordinate_names: Tuple[str] = ()
+    parse_coordinate_names: Tuple[str] = ()
 
     _cur_coordinates: Tuple[float | int] = ()
 
     @property
-    def coordinates(self):
+    def coordinates(self) -> Tuple[float | int]:
         if len(self._cur_coordinates) == 0:
             joint_values = tuple(0 for _ in range(len(self.forward_kinematics_joint_names)))
             self._cur_coordinates = self.forward_kinematics(joint_values)
@@ -27,6 +27,11 @@ class BaseKinematics(ABC):
     @staticmethod
     @abstractmethod
     def get_length(start_coordinates: Tuple[float | int], end_coordinates: Tuple[float | int]):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def convert_coordinates(coordinates: Tuple[float | int]):
         pass
 
     @abstractmethod

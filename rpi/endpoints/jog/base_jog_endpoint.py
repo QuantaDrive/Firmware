@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 
 
-class BaseJogController(ABC):
+class BaseJogEndpoint(ABC):
     @abstractmethod
     def config_coordinate_names(self, coordinate_names: Tuple[str]):
         pass

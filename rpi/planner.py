@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import time
 from enum import IntEnum
-from typing import Type, Tuple, List
+from typing import Type, Tuple
 
 import numpy as np
 
 from controller import Controller
 from kinematics.base_kinematics import BaseKinematics
-from endpoints.base_jog_controller import BaseJogController
-from parsers.program import Program
+from endpoints import BaseJogEndpoint, program_endpoints
+from parsers import ParserSettings, Program
 
 
 class Planner:
@@ -25,9 +25,12 @@ class Planner:
         self.move_mode: Planner.MoveMode = Planner.MoveMode.AUTO
         self.controller: Controller = controller
         self.kinematic: Type[BaseKinematics] = controller.kinematic_settings.get_kinematics()
-        self.jog_controller: Type[BaseJogController] = controller.move_settings.get_jog_controller()
+        self.jog_controller: Type[BaseJogEndpoint] = controller.move_settings.get_jog_controller()
         self.jog_controller.config_coordinate_names(self.kinematic.inverse_kinematics_coordinate_names)
+        ParserSettings().set_coordinate_names(self.kinematic.parse_coordinate_names)
         self.program: Program = None
+        for endpoint in program_endpoints:
+            endpoint.start()
 
     @classmethod
     def from_config(cls, config_file):
@@ -43,6 +46,9 @@ class Planner:
             self.controller.set_move_mode(Controller.MoveMode.REALTIME)
         self.move_mode_changed = True
 
+    def swap_program_buffers(self):
+        self.program, Program.program_buffer = Program.program_buffer, self.program
+
     def run(self):
         while True:
             if self.move_mode == Planner.MoveMode.AUTO:
@@ -51,13 +57,13 @@ class Planner:
                         time.sleep(0.1)
                         continue
                     for line in self.program.lines:
-                        self.plan_move(line.coordinates, line.speed, line.relative)
+                        coordinates = self.kinematic.convert_coordinates(line.coordinates)
+                        self.plan_move(coordinates, line.speed, line.relative)
                     time.sleep(0.1)
             elif self.move_mode == Planner.MoveMode.MANUAL:
                 while not self.move_mode_changed:
                     coordinates = self.jog_controller.get_move()
-                    coordinates = [coordinates[0], coordinates[1], coordinates[2],
-                                   np.radians(coordinates[3]), np.radians(coordinates[4]), np.radians(coordinates[5])]
+                    coordinates = self.kinematic.convert_coordinates(coordinates)
                     if sum(coordinates) == 0:
                         time.sleep(0.25)
                         continue
@@ -69,6 +75,11 @@ class Planner:
         acceleration = self.controller.move_settings.max_accel
         if speed == 0:
             speed = self.controller.move_settings.max_velocity
+
+        coordinates = tuple(
+            self.kinematic.coordinates[i] if coord is None else coord
+            for i, coord in enumerate(coordinates)
+        )
 
         start_coordinates = self.kinematic.coordinates
         end_coordinates = coordinates
@@ -103,7 +114,6 @@ class Planner:
             cur_coordinates += move_per_step
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
             if np.isnan(cur_joints).any():
-                print(cur_coordinates)
                 return False
             # print("Joints: ", np.round(np.degrees(cur_joints), 2))
             # Check moves with the steppers maximum speed/acceleration

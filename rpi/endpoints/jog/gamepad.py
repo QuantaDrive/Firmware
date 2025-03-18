@@ -6,7 +6,7 @@ from typing import Tuple, Literal, List, Dict
 from inputs import DeviceManager, WIN, EVENT_TYPES, EVENT_MAP
 
 from controller import MoveSettings
-from endpoints.base_jog_controller import BaseJogController
+from endpoints.jog.base_jog_endpoint import BaseJogEndpoint
 
 # inputs DeviceManager with refresh support
 class DeviceManagerRefresh(DeviceManager):
@@ -51,7 +51,7 @@ class DeviceManagerRefresh(DeviceManager):
             }
         self._post_init()
 
-class Gamepad(BaseJogController):
+class Gamepad(BaseJogEndpoint):
     class Buttons(IntEnum):
         JOYSTICK_A_X = 0
         JOYSTICK_A_Y = 1

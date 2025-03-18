@@ -10,7 +10,7 @@ from kinematics.base_kinematics import BaseKinematics, BaseKinematicsModel
 class Arm6DoF(BaseKinematics):
     forward_kinematics_joint_names = ("theta1", "theta2", "theta3", "theta4", "theta5", "theta6")
     inverse_kinematics_coordinate_names = ("x", "y", "z", "yaw", "pitch", "roll")
-    gcode_coordinate_names = ("x", "y", "z", "i", "j", "k")
+    parse_coordinate_names = ("x", "y", "z", "i", "j", "k")
 
 
     def __init__(self, dh_params):
@@ -40,6 +40,16 @@ class Arm6DoF(BaseKinematics):
         rotation_x_length = np.abs(end_coordinates[5] - start_coordinates[5])
         return max(translation_length, np.degrees(rotation_z_length), np.degrees(rotation_y_length), np.degrees(rotation_x_length))
 
+    @staticmethod
+    def convert_coordinates(coordinates: Tuple[float | int | None]) -> Tuple[float | int | None]:
+        return (
+            coordinates[0],
+            coordinates[1],
+            coordinates[2],
+            np.radians(coordinates[3]) if coordinates[3] is not None else None,
+            np.radians(coordinates[4]) if coordinates[4] is not None else None,
+            np.radians(coordinates[5]) if coordinates[5] is not None else None
+        )
     @staticmethod
     def dh_transformation_matrix(theta, alpha, d, a, sympy=False):
         if sympy:

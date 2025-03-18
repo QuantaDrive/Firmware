@@ -17,8 +17,7 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from kinematics import kinematic_types
 from endpoints import jog_controller_types
 from controller import Stepper
-from controller.pin import (pin_types, pin_set_lookup_tables, validate_pin_type,
-                            Multiplexer, ShiftRegister, Direction, ManualPin)
+from controller.pin import pin_set_lookup_tables, Multiplexer, ShiftRegister, Direction, ManualPin
 
 
 class Controller(BaseModel):

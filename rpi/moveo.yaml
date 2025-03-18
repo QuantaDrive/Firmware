@@ -7,7 +7,7 @@ move_settings:
     - YAW: DPAD_X
     - PITCH: JOYSTICK_B_Y
     - ROLL: JOYSTICK_B_X
-  jog_velocity: 2
+  jog_velocity: 5
   max_velocity: 25
   max_accel: 2
 
