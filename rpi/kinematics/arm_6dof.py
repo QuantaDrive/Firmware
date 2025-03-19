@@ -116,7 +116,7 @@ class Arm6DoF(BaseKinematics):
             spherical_wrist_matrix[1, 3] * cThetaA + spherical_wrist_matrix[0, 3] * sThetaA,
             spherical_wrist_matrix[2, 3]])
         # l1 = x' - dh_a1
-        l1 = pos_j1_zero[0] - self.dh_params[0, 3]
+        l1 = np.sqrt(spherical_wrist_matrix[0, 3] ** 2 + spherical_wrist_matrix[1, 3] ** 2) - self.dh_params[0, 3]
         # l4 = z' - dh_d1
         l4 = pos_j1_zero[2] - self.dh_params[0, 2]
         # l2 = pythagorean theorem on l1 and l4
@@ -184,8 +184,12 @@ if __name__ == "__main__":
     ])
 
     toolframe_matrix = Arm6DoF.transformation_matrix(0, 0, 0, 0, 0, 0)
-
     arm = Arm6DoF(dh_params)
+
+
+    for i in range(100):
+        print(np.round(arm.inverse_kinematics((300, i, 525, np.radians(0), np.radians(90),  np.radians(0)), toolframe_matrix), 2))
+    exit(0)
 
     x, y, z, yaw, pitch, roll = arm.forward_kinematics((sp.rad(0), sp.rad(0), sp.rad(90), sp.rad(0), sp.rad(0), sp.rad(0)), toolframe_matrix)
     print("x: " + str(x))
