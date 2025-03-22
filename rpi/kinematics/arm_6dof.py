@@ -1,8 +1,10 @@
-from typing import Tuple, Literal
+from __future__ import annotations
+
+from typing import Literal
 
 import numpy as np
+import numpy.typing as npt
 import sympy as sp
-from pydantic import BaseModel
 
 from kinematics.base_kinematics import BaseKinematics, BaseKinematicsModel
 
@@ -12,44 +14,137 @@ class Arm6DoF(BaseKinematics):
     inverse_kinematics_coordinate_names = ("x", "y", "z", "yaw", "pitch", "roll")
     parse_coordinate_names = ("x", "y", "z", "i", "j", "k")
 
+    def __init__(self, settings: type[Arm6DoFModel]):
+        super().__init__(settings)
+        self._cur_direction = np.array([0, 0, 0, 0, 0, 0])
+        self._cur_speed = np.array([0, 0, 0, 0])
 
-    def __init__(self, dh_params):
         self.dh_params = np.array([
-            [np.radians(dh_params[0][0]), np.radians(dh_params[0][1]), dh_params[0][2], dh_params[0][3]],
-            [np.radians(dh_params[1][0]), np.radians(dh_params[1][1]), dh_params[1][2], dh_params[1][3]],
-            [np.radians(dh_params[2][0]), np.radians(dh_params[2][1]), dh_params[2][2], dh_params[2][3]],
-            [np.radians(dh_params[3][0]), np.radians(dh_params[3][1]), dh_params[3][2], dh_params[3][3]],
-            [np.radians(dh_params[4][0]), np.radians(dh_params[4][1]), dh_params[4][2], dh_params[4][3]],
-            [np.radians(dh_params[5][0]), np.radians(dh_params[5][1]), dh_params[5][2], dh_params[5][3]]
+            [np.radians(self.settings.dh_params[0][0]), np.radians(self.settings.dh_params[0][1]), self.settings.dh_params[0][2], self.settings.dh_params[0][3]],
+            [np.radians(self.settings.dh_params[1][0]), np.radians(self.settings.dh_params[1][1]), self.settings.dh_params[1][2], self.settings.dh_params[1][3]],
+            [np.radians(self.settings.dh_params[2][0]), np.radians(self.settings.dh_params[2][1]), self.settings.dh_params[2][2], self.settings.dh_params[2][3]],
+            [np.radians(self.settings.dh_params[3][0]), np.radians(self.settings.dh_params[3][1]), self.settings.dh_params[3][2], self.settings.dh_params[3][3]],
+            [np.radians(self.settings.dh_params[4][0]), np.radians(self.settings.dh_params[4][1]), self.settings.dh_params[4][2], self.settings.dh_params[4][3]],
+            [np.radians(self.settings.dh_params[5][0]), np.radians(self.settings.dh_params[5][1]), self.settings.dh_params[5][2], self.settings.dh_params[5][3]]
         ])
         self.dh_params_sympy = sp.Matrix([
-            [sp.rad(dh_params[0][0]), sp.rad(dh_params[0][1]), dh_params[0][2], dh_params[0][3]],
-            [sp.rad(dh_params[1][0]), sp.rad(dh_params[1][1]), dh_params[1][2], dh_params[1][3]],
-            [sp.rad(dh_params[2][0]), sp.rad(dh_params[2][1]), dh_params[2][2], dh_params[2][3]],
-            [sp.rad(dh_params[3][0]), sp.rad(dh_params[3][1]), dh_params[3][2], dh_params[3][3]],
-            [sp.rad(dh_params[4][0]), sp.rad(dh_params[4][1]), dh_params[4][2], dh_params[4][3]],
-            [sp.rad(dh_params[5][0]), sp.rad(dh_params[5][1]), dh_params[5][2], dh_params[5][3]]
+            [sp.rad(self.settings.dh_params[0][0]), sp.rad(self.settings.dh_params[0][1]), self.settings.dh_params[0][2], self.settings.dh_params[0][3]],
+            [sp.rad(self.settings.dh_params[1][0]), sp.rad(self.settings.dh_params[1][1]), self.settings.dh_params[1][2], self.settings.dh_params[1][3]],
+            [sp.rad(self.settings.dh_params[2][0]), sp.rad(self.settings.dh_params[2][1]), self.settings.dh_params[2][2], self.settings.dh_params[2][3]],
+            [sp.rad(self.settings.dh_params[3][0]), sp.rad(self.settings.dh_params[3][1]), self.settings.dh_params[3][2], self.settings.dh_params[3][3]],
+            [sp.rad(self.settings.dh_params[4][0]), sp.rad(self.settings.dh_params[4][1]), self.settings.dh_params[4][2], self.settings.dh_params[4][3]],
+            [sp.rad(self.settings.dh_params[5][0]), sp.rad(self.settings.dh_params[5][1]), self.settings.dh_params[5][2], self.settings.dh_params[5][3]]
         ])
 
-    @staticmethod
-    def get_length(start_coordinates: Tuple[float | int], end_coordinates: Tuple[float | int]):
-        translation_length = np.sqrt((end_coordinates[0] - start_coordinates[0])**2 + (end_coordinates[1] - start_coordinates[1])**2 + (end_coordinates[2] - start_coordinates[2])**2)
-        # if there is a greater rotation move the speed becomes deg per second
-        rotation_z_length = np.abs(end_coordinates[3] - start_coordinates[3])
-        rotation_y_length = np.abs(end_coordinates[4] - start_coordinates[4])
-        rotation_x_length = np.abs(end_coordinates[5] - start_coordinates[5])
-        return max(translation_length, np.degrees(rotation_z_length), np.degrees(rotation_y_length), np.degrees(rotation_x_length))
+    @property
+    def cur_direction(self) -> npt.NDArray[float | int]:
+        return self._cur_direction
+
+    @cur_direction.setter
+    def cur_direction(self, direction: list[float | int]):
+        self._cur_direction = self.normalize_direction(direction)
+
 
     @staticmethod
-    def convert_coordinates(coordinates: Tuple[float | int | None]) -> Tuple[float | int | None]:
-        return (
+    def get_length(start_coordinates: list[float | int], end_coordinates: list[float | int]):
+        translation_length = np.sqrt((end_coordinates[0] - start_coordinates[0])**2 + (end_coordinates[1] - start_coordinates[1])**2 + (end_coordinates[2] - start_coordinates[2])**2)
+        # if rotation move is greater than the translation the speed becomes deg per second
+        rotation_z = np.abs(end_coordinates[3] - start_coordinates[3])
+        rotation_y = np.abs(end_coordinates[4] - start_coordinates[4])
+        rotation_x = np.abs(end_coordinates[5] - start_coordinates[5])
+        return max(translation_length, np.degrees(rotation_z), np.degrees(rotation_y), np.degrees(rotation_x))
+
+    @staticmethod
+    def convert_coordinates(coordinates: list[float | int | None]) -> list[float | int | None]:
+        return [
             coordinates[0],
             coordinates[1],
             coordinates[2],
             np.radians(coordinates[3]) if coordinates[3] is not None else None,
             np.radians(coordinates[4]) if coordinates[4] is not None else None,
             np.radians(coordinates[5]) if coordinates[5] is not None else None
-        )
+        ]
+
+    def get_speed_dir_size(self, speed: list[float | int] | int | float = None) -> npt.NDArray[float | int]:
+        if speed is None:
+            speed = self._cur_speed
+        return np.array([speed[0], speed[0], speed[0], speed[1], speed[2], speed[3]])
+
+    @staticmethod
+    def normalize_direction(direction: list[float | int]):
+        direction = np.array(direction)
+        direction_xyz = direction[:3]
+        direction_xyz_length = np.sqrt(direction_xyz[0] ** 2 + direction_xyz[1] ** 2 + direction_xyz[2] ** 2)
+        direction_xyz_normalized = direction_xyz / direction_xyz_length
+
+        direction_ypr = np.sign(direction[3:])
+
+        return np.concatenate((direction_xyz_normalized, direction_ypr))
+
+    def calc_new_jog_speed(self, new_direction: list[float | int], time_to_move: float | int):
+        cur_speed_per_axis = self.cur_direction * self.get_speed_dir_size()
+        cur_max_accel = self.cur_direction * self.settings.max_accel
+        cur_max_decel = self.cur_direction * self.settings.jog_decel
+
+        new_direction_normalized = self.normalize_direction(new_direction)
+        # if you just multiply the new direction with the max speed the max speed will be sqrt(3) times higher than it should be
+        max_velocity_new_direction = new_direction_normalized * np.abs(new_direction) * self.settings.max_velocity
+
+        # the new speed per axis (absolute value)
+        new_speed_per_axis = np.array([0, 0, 0, 0, 0, 0])
+        # the new direction per axis
+        move_direction = np.array([0, 0, 0, 0, 0, 0])
+
+        for i in range(len(self._cur_direction)):
+            # if the axis is not moving and does not need to move
+            if np.sign(new_direction_normalized[i]) == 0 and np.sign(self.cur_direction[i]) == 0:
+                new_speed_per_axis[i] = 0
+            # if the axis must stop moving
+            elif np.sign(new_direction_normalized[i]) == 0:
+                new_speed_per_axis[i] = np.max([
+                    cur_speed_per_axis[i] - cur_max_decel[i] * time_to_move,
+                    0
+                ])
+                if new_speed_per_axis[i] != 0:
+                    move_direction[i] = np.sign(self.cur_direction[i])
+            # if the axis must move to the opposite direction (decelerate to 0 and accelerate)
+            elif np.sign(new_direction_normalized[i]) != np.sign(self.cur_direction[i]) and cur_speed_per_axis[i] != 0:
+                time_to_stall = np.abs(cur_speed_per_axis[i]) / cur_max_accel[i]
+                # the axis is not going to get to 0 this time
+                if time_to_stall >= time_to_move:
+                    new_speed_per_axis[i] = np.max([
+                        cur_speed_per_axis[i] - cur_max_accel[i] * time_to_move,
+                        0
+                    ])
+                    move_direction[i] = np.sign(self.cur_direction[i])
+                # the axis can get to 0 in time to accelerate in the opposite direction
+                else:
+                    time_to_accel = time_to_move - time_to_stall
+                    new_speed_per_axis[i] = np.min([
+                        cur_max_accel[i] * time_to_accel,
+                        max_velocity_new_direction[i]
+                    ])
+                    move_direction[i] = np.sign(new_direction_normalized[i])
+            # if the axis starts moving or continues moving in the same direction
+            else:
+                if max_velocity_new_direction[i] < cur_speed_per_axis[i]:
+                    new_speed_per_axis[i] = np.max([
+                        cur_speed_per_axis[i] - cur_max_accel[i] * time_to_move,
+                        max_velocity_new_direction[i]
+                    ])
+                else:
+                    new_speed_per_axis[i] = np.min([
+                        cur_speed_per_axis[i] + cur_max_accel[i] * time_to_move,
+                        max_velocity_new_direction[i]
+                    ])
+                move_direction[i] = np.sign(new_direction_normalized[i])
+
+        new_speed_xyz = np.sqrt(new_speed_per_axis[0] ** 2 + new_speed_per_axis[1] ** 2 + new_speed_per_axis[2] ** 2)
+        self._cur_speed = np.concatenate((new_speed_xyz, new_speed_per_axis[3:]))
+        self.cur_direction = move_direction * new_speed_per_axis
+
+        return move_direction * new_speed_per_axis
+
     @staticmethod
     def dh_transformation_matrix(theta, alpha, d, a, sympy=False):
         if sympy:
@@ -80,7 +175,7 @@ class Arm6DoF(BaseKinematics):
             [    0,        0        ,        0        , 1]
         ])
 
-    def forward_kinematics(self, joints: Tuple[float | int], toolframe_matrix=sp.eye(4)):
+    def forward_kinematics(self, joints: tuple[float | int, ...], toolframe_matrix=sp.eye(4)) -> tuple[float | int, ...]:
         theta1, theta2, theta3, theta4, theta5, theta6 = joints
         j1_dh_matrix = Arm6DoF.dh_transformation_matrix(theta1 + self.dh_params_sympy[0, 0], self.dh_params_sympy[0, 1], self.dh_params_sympy[0, 2], self.dh_params_sympy[0, 3], sympy=True)
         j2_dh_matrix = Arm6DoF.dh_transformation_matrix(theta2 + self.dh_params_sympy[1, 0], self.dh_params_sympy[1, 1], self.dh_params_sympy[1, 2], self.dh_params_sympy[1, 3], sympy=True)
@@ -102,7 +197,7 @@ class Arm6DoF(BaseKinematics):
         ]
         return tuple(coordinates + orientation)
 
-    def inverse_kinematics(self, coordinates: Tuple[float | int], toolframe_matrix=np.identity(4)):
+    def inverse_kinematics(self, coordinates: tuple[float | int, ...], toolframe_matrix=np.identity(4)) -> tuple[float | int, ...]:
         x, y, z, yaw, pitch, roll = coordinates
         toolframe_matrix_inverse = np.linalg.inv(toolframe_matrix) # this can be done faster maybe
         j0_6_reverse_kin_matrix = Arm6DoF.transformation_matrix(x, y, z, yaw, pitch, roll) @ toolframe_matrix_inverse
@@ -170,7 +265,7 @@ class Arm6DoFModel(BaseKinematicsModel):
     type: Literal["6DOF arm"]
     dh_params: list[list[float]]
 
-    def get_kinematics(self):
+    def get_kinematics(self) -> Arm6DoF:
         return Arm6DoF(self.dh_params)
 
 if __name__ == "__main__":
@@ -185,11 +280,6 @@ if __name__ == "__main__":
 
     toolframe_matrix = Arm6DoF.transformation_matrix(0, 0, 0, 0, 0, 0)
     arm = Arm6DoF(dh_params)
-
-
-    for i in range(100):
-        print(np.round(arm.inverse_kinematics((300, i, 525, np.radians(0), np.radians(90),  np.radians(0)), toolframe_matrix), 2))
-    exit(0)
 
     x, y, z, yaw, pitch, roll = arm.forward_kinematics((sp.rad(0), sp.rad(0), sp.rad(90), sp.rad(0), sp.rad(0), sp.rad(0)), toolframe_matrix)
     print("x: " + str(x))

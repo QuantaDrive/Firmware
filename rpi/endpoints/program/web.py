@@ -11,7 +11,7 @@ class WebProgramController(BaseProgramEndpoint):
 
     @classmethod
     def _run_web_server(cls):
-        uvicorn.run(cls.app, host="0.0.0.0", port=8000, log_level="critical")
+        uvicorn.run(cls.app, host="0.0.0.0", port=8000) #log_level="critical"
 
     @classmethod
     def start(cls):

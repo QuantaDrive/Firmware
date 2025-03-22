@@ -1,7 +1,7 @@
 import threading
 import time
 from enum import IntEnum
-from typing import Tuple, Literal, List, Dict
+from typing import Literal
 
 from inputs import DeviceManager, WIN, EVENT_TYPES, EVENT_MAP
 
@@ -71,7 +71,7 @@ class Gamepad(BaseJogEndpoint):
         MENU_SELECT = 15
         MENU_START = 16
 
-    def __init__(self, controls_mapping: List[Dict[str, str]]):
+    def __init__(self, controls_mapping: list[dict[str, str]]):
         self.deadzone = 3200
         self._button_values = [0] * 17
         self._controls_mapping_axis_name = controls_mapping
@@ -81,7 +81,7 @@ class Gamepad(BaseJogEndpoint):
     def __repr__(self):
         return f"Gamepad(joystick_A={self._button_values[0:2]}, joystick_B={self._button_values[2:4]}, triggers={self._button_values[4:6]}, bumper={self._button_values[6:8]}, dpad={self._button_values[8:10]}, buttons={self._button_values[10:]})"
 
-    def config_coordinate_names(self, coordinate_names: Tuple[str]):
+    def config_coordinate_names(self, coordinate_names: tuple[str]):
         self._controls_mapping_axis_id = [0] * len(coordinate_names)
         for axis in coordinate_names:
             for mapping in self._controls_mapping_axis_name:
@@ -163,8 +163,10 @@ class Gamepad(BaseJogEndpoint):
 class GamepadJogController(MoveSettings):
     jog_controller: Literal["Gamepad"]
 
-    def get_jog_controller(self):
-        return Gamepad(self.jog_controller_mapping)
+    def get_jog_controller(self, inverse_kinematics_coordinate_names: tuple[str]):
+        gamepad = Gamepad(self.jog_controller_mapping)
+        gamepad.config_coordinate_names(inverse_kinematics_coordinate_names)
+        return gamepad
 
 
 if __name__ == "__main__":

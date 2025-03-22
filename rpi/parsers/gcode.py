@@ -24,6 +24,7 @@ def parse_gcode(gcode: str):
             for i in range(1, len(line_tokens)):
                 if line_tokens[i][0] == "F":
                     speed = float(line_tokens[i][1:])
+                    continue
                 coordinate_index = coordinate_name_index[line_tokens[i][0]]
                 coordinates[coordinate_index] = float(line_tokens[i][1:])
             program.lines.append(Program.ProgramLine(coordinates, speed, relative))

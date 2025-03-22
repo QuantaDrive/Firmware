@@ -1,14 +1,10 @@
-from typing import Literal, List, Dict
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class MoveSettings(BaseModel):
     jog_controller: Literal[""]
-    jog_controller_mapping: List[Dict[str, str]]
+    jog_controller_mapping: list[dict[str, str]]
 
-    jog_velocity: float = Field(default=1)       # mm per second
-    max_velocity: float = Field(default=25)      # mm per second
-    max_accel: float = Field(default=2.5)        # mm per second^2
-
-    def get_jog_controller(self):
+    def get_jog_controller(self, inverse_kinematics_coordinate_names: tuple[str]):
         pass

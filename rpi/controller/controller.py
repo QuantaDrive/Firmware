@@ -139,7 +139,7 @@ class Controller(BaseModel):
         self._move_queue.put(command)
         return command_id
 
-    def move_steppers(self, new_positions: List[float], time: float, relative: bool = False):
+    def move_steppers(self, new_positions: tuple[float | int, ...], time: float, relative: bool = False):
         command_id = next(self._command_id)
         command: bytearray = bytearray()
         command += b'\x12'
