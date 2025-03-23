@@ -40,6 +40,7 @@ def parse_gcode_MDI():
 def parse_gcode(gcode: str):
     program = Program()
     parse_generator = parse_gcode_MDI()
+    parse_generator.send(None)
     for line in gcode.splitlines():
         program_line = parse_generator.send(line)
         if program_line is not None:

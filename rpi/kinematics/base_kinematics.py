@@ -75,7 +75,7 @@ class BaseKinematics(ABC):
         moves[i].velocity.start_velocity = start_velocity
         moves[i - 1].velocity.end_velocity = start_velocity
 
-        pre_max_speed = moves[i - 1].velocity.calc_max_velocity(pre_lengths)
+        pre_max_speed = moves[i - 1].velocity.calc_max_velocity()
         if pre_max_speed < moves[i - 1].velocity.cruise_velocity:
             moves[i - 1].velocity.cruise_velocity = pre_max_speed
 
@@ -108,6 +108,7 @@ class BaseKinematics(ABC):
                 moves.velocity.cruise_velocity = self.settings.max_velocity
 
             moves.velocity.acceleration = self.settings.max_accel
+            moves.velocity.calc_braking_distance()
             return
 
         moves[0].coordinate = self.convert_coordinates(moves[0].coordinate)
@@ -140,7 +141,7 @@ class BaseKinematics(ABC):
 
                 moves[i - 1].velocity.end_velocity = (moves[i].velocity.cruise_velocity * angle_between_directions[velocity_id])
 
-                pre_max_speed = moves[i - 1].velocity.calc_max_velocity(pre_lengths)
+                pre_max_speed = moves[i - 1].velocity.calc_max_velocity()
                 if pre_max_speed < moves[i - 1].velocity.cruise_velocity:
                     moves[i - 1].velocity.cruise_velocity = pre_max_speed
 
@@ -176,7 +177,7 @@ class BaseKinematics(ABC):
 class BaseKinematicsModel(BaseModel):
     type: Literal[""]
 
-    jog_velocity: float = Field(default=1)  # mm per second
+    jog_velocity: float = Field(default=15)  # mm per second
     jog_decel: float = Field(default=5)  # mm per second
     max_velocity: float = Field(default=25)  # mm per second
     max_accel: float = Field(default=2.5)  # mm per second^2

@@ -60,6 +60,8 @@ class Arm6DoF(BaseKinematics):
         direction = np.array(direction)
         direction_xyz = direction[:3]
         direction_xyz_length = np.sqrt(direction_xyz[0] ** 2 + direction_xyz[1] ** 2 + direction_xyz[2] ** 2)
+        if direction_xyz_length == 0:
+            direction_xyz_length = 1
         direction_xyz_normalized = direction_xyz / direction_xyz_length
 
         direction_ypr = np.sign(direction[3:])
@@ -92,16 +94,20 @@ class Arm6DoF(BaseKinematics):
         return np.array([speed[0], speed[0], speed[0], speed[1], speed[2], speed[3]])
 
     def calc_new_jog_velocity(self, new_direction: list[float | int], time_to_move: float | int):
-        cur_speed_per_axis = self.cur_direction * self.get_speed_dir_size()
-        cur_max_accel = self.cur_direction * self.settings.max_accel
-        cur_max_decel = self.cur_direction * self.settings.jog_decel
+        cur_speed_per_axis = np.abs(self.cur_direction) * self.get_speed_dir_size()
+        max_accel = np.abs(self.cur_direction) * self.settings.max_accel
+        max_decel = np.abs(self.cur_direction) * self.settings.jog_decel
 
         new_direction_normalized = self.normalize_direction(new_direction)
         # if you just multiply the new direction with the max speed the max speed will be sqrt(3) times higher than it should be
-        max_velocity_new_direction = new_direction_normalized * np.abs(new_direction) * self.settings.jog_velocity
+        max_velocity_new_direction = np.abs(new_direction_normalized * new_direction) * self.settings.jog_velocity
+
+        if not np.any(self.cur_direction):
+            max_accel = np.abs(new_direction_normalized) * self.settings.max_accel
+            max_decel = np.abs(new_direction_normalized) * self.settings.jog_decel
 
         # the new speed per axis (absolute value)
-        new_speed_per_axis = np.array([0, 0, 0, 0, 0, 0])
+        new_speed_per_axis = np.array([0, 0, 0, 0, 0, 0], dtype=float)
         # the new direction per axis
         move_direction = np.array([0, 0, 0, 0, 0, 0])
 
@@ -112,18 +118,18 @@ class Arm6DoF(BaseKinematics):
             # if the axis must stop moving
             elif np.sign(new_direction_normalized[i]) == 0:
                 new_speed_per_axis[i] = np.max([
-                    cur_speed_per_axis[i] - cur_max_decel[i] * time_to_move,
+                    cur_speed_per_axis[i] - max_decel[i] * time_to_move,
                     0
                 ])
                 if new_speed_per_axis[i] != 0:
                     move_direction[i] = np.sign(self.cur_direction[i])
             # if the axis must move to the opposite direction (decelerate to 0 and accelerate)
             elif np.sign(new_direction_normalized[i]) != np.sign(self.cur_direction[i]) and cur_speed_per_axis[i] != 0:
-                time_to_stall = np.abs(cur_speed_per_axis[i]) / cur_max_accel[i]
+                time_to_stall = np.abs(cur_speed_per_axis[i]) / max_accel[i]
                 # the axis is not going to get to 0 this time
                 if time_to_stall >= time_to_move:
                     new_speed_per_axis[i] = np.max([
-                        cur_speed_per_axis[i] - cur_max_accel[i] * time_to_move,
+                        cur_speed_per_axis[i] - max_accel[i] * time_to_move,
                         0
                     ])
                     move_direction[i] = np.sign(self.cur_direction[i])
@@ -131,7 +137,7 @@ class Arm6DoF(BaseKinematics):
                 else:
                     time_to_accel = time_to_move - time_to_stall
                     new_speed_per_axis[i] = np.min([
-                        cur_max_accel[i] * time_to_accel,
+                        max_accel[i] * time_to_accel,
                         max_velocity_new_direction[i]
                     ])
                     move_direction[i] = np.sign(new_direction_normalized[i])
@@ -139,18 +145,18 @@ class Arm6DoF(BaseKinematics):
             else:
                 if max_velocity_new_direction[i] < cur_speed_per_axis[i]:
                     new_speed_per_axis[i] = np.max([
-                        cur_speed_per_axis[i] - cur_max_accel[i] * time_to_move,
+                        cur_speed_per_axis[i] - max_accel[i] * time_to_move,
                         max_velocity_new_direction[i]
                     ])
                 else:
                     new_speed_per_axis[i] = np.min([
-                        cur_speed_per_axis[i] + cur_max_accel[i] * time_to_move,
+                        cur_speed_per_axis[i] + max_accel[i] * time_to_move,
                         max_velocity_new_direction[i]
                     ])
                 move_direction[i] = np.sign(new_direction_normalized[i])
 
         new_speed_xyz = np.sqrt(new_speed_per_axis[0] ** 2 + new_speed_per_axis[1] ** 2 + new_speed_per_axis[2] ** 2)
-        self._cur_speed = np.concatenate((new_speed_xyz, new_speed_per_axis[3:]))
+        self._cur_speed = np.concatenate(([new_speed_xyz], new_speed_per_axis[3:]))
         self.cur_direction = move_direction * new_speed_per_axis
 
         return move_direction * new_speed_per_axis
@@ -289,22 +295,13 @@ if __name__ == "__main__":
     ])
 
     toolframe_matrix = Arm6DoF.transformation_matrix(0, 0, 0, 0, 0, 0)
-    arm = Arm6DoF(dh_params)
+    arm_model = Arm6DoFModel(type="6DOF arm", dh_params=dh_params)
+    arm = arm_model.get_kinematics()
 
-    x, y, z, yaw, pitch, roll = arm.forward_kinematics((sp.rad(0), sp.rad(0), sp.rad(90), sp.rad(0), sp.rad(0), sp.rad(0)), toolframe_matrix)
-    print("x: " + str(x))
-    print("y: " + str(y))
-    print("z: " + str(z))
-    print("yaw: " + str(np.degrees(yaw)))
-    print("pitch: " + str(np.degrees(pitch)))
-    print("roll: " + str(np.degrees(roll)))
-    print()
+    print(arm.calc_new_jog_velocity([-1, 0, 0, 0, 0, 0], 1))
+    print(arm.calc_new_jog_velocity([-1, 0, 0, 0, 0, 0], 1))
+    print(arm.calc_new_jog_velocity([1, 0, 0, 0, 0, 0], 1))
+    print(arm.calc_new_jog_velocity([1, 0, 0, 0, 0, 0], 1))
+    print(arm.calc_new_jog_velocity([1, 0, 0, 0, 0, 0], 1))
+    print(arm.calc_new_jog_velocity([1, 0, 0, 0, 0, 0], 1))
 
-    # j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((x, y, z, yaw, pitch, roll), toolframe_matrix)
-    j1_angle, j2_angle, j3_angle, j4_angle, j5_angle, j6_angle = arm.inverse_kinematics((308.557, 0, 521.354, np.radians(0), np.radians(0),  np.radians(0)), toolframe_matrix)
-    print("j1_angle: " + str(np.degrees(j1_angle)))
-    print("j2_angle: " + str(np.degrees(j2_angle)))
-    print("j3_angle: " + str(np.degrees(j3_angle)))
-    print("j4_angle: " + str(np.degrees(j4_angle)))
-    print("j5_angle: " + str(np.degrees(j5_angle)))
-    print("j6_angle: " + str(np.degrees(j6_angle)))

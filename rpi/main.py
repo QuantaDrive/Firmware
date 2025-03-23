@@ -20,9 +20,9 @@ threading.Thread(target=planner.run, daemon=True).start()
 
 print("Start")
 move = Move()
-move.coordinate = np.array([300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)])
+move.velocity.cruise_velocity = 25
+move.coordinate = np.array([300, 0, 525, 0, 90,  0])
 planner.run_move(move)
-
 
 while True:
     command = input("Command: ").lower()
