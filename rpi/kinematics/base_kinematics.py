@@ -76,8 +76,8 @@ class BaseKinematics(ABC):
         moves[i - 1].velocity.end_velocity = start_velocity
 
         pre_max_speed = moves[i - 1].velocity.calc_max_velocity(pre_lengths)
-        if pre_max_speed < moves[i - 1].velocity.cur_cruise_velocity:
-            moves[i - 1].velocity.cur_cruise_velocity = pre_max_speed
+        if pre_max_speed < moves[i - 1].velocity.cruise_velocity:
+            moves[i - 1].velocity.cruise_velocity = pre_max_speed
 
         moves[i - 1].velocity.calc_braking_distance()
 
@@ -86,12 +86,10 @@ class BaseKinematics(ABC):
             # Move only decelerates but cant get to end velocity
             # So move the start velocity down so it can get to the end velocity
             pre_start_velocity = np.sqrt(
-                2 * pre_lengths[pre_velocity_id] * moves[i - 1].velocity.cur_deceleration +
-                moves[i - 1].velocity.cur_end_velocity ** 2
+                2 * pre_lengths[pre_velocity_id] * moves[i - 1].velocity.acceleration +
+                moves[i - 1].velocity.end_velocity ** 2
             )
             self._set_start_velocity(moves, i - 1, pre_start_velocity)
-
-        moves[i - 1].velocity.calc_secondary_moves(pre_lengths)
 
     def create_velocity_profile(self, moves: list[Move]):
         moves[0].coordinate = self.convert_coordinates(moves[0].coordinate)
@@ -104,18 +102,9 @@ class BaseKinematics(ABC):
                 lengths, velocity_id = self.get_length(moves[i - 1].coordinate, moves[i].coordinate)
 
             moves[i].velocity.id = velocity_id
-            moves[i].velocity.distance = lengths[i]
+            moves[i].velocity.distance = lengths[velocity_id]
 
-            cruise_velocity = np.array([0, 0, 0, 0])
-            cruise_velocity[velocity_id] = moves[i].velocity.cruise_velocity[0]
-            moves[i].velocity.cruise_velocity = cruise_velocity
-
-            acceleration = np.array([0, 0, 0, 0])
-            acceleration[velocity_id] = self.settings.max_accel
-            moves[i].velocity.acceleration = acceleration
-            moves[i].velocity.deceleration = acceleration
-
-            moves[i].velocity.calc_secondary_moves(lengths)
+            moves[i].velocity.acceleration = self.settings.max_accel
 
             if i == 0:
                 continue
@@ -125,33 +114,29 @@ class BaseKinematics(ABC):
                 pre_direction = moves[i - 1].coordinate - moves[i - 2].coordinate
                 angle_between_directions = self.angle_between_directions(cur_direction, pre_direction)
 
-                moves[i - 1].velocity.end_velocity = moves[i].velocity.cruise_velocity * angle_between_directions[
-                    velocity_id]
+                moves[i - 1].velocity.end_velocity = (moves[i].velocity.cruise_velocity * angle_between_directions[velocity_id])
 
                 pre_max_speed = moves[i - 1].velocity.calc_max_velocity(pre_lengths)
-                if pre_max_speed < moves[i - 1].velocity.cur_cruise_velocity:
-                    moves[i - 1].velocity.cur_cruise_velocity = pre_max_speed
+                if pre_max_speed < moves[i - 1].velocity.cruise_velocity:
+                    moves[i - 1].velocity.cruise_velocity = pre_max_speed
 
                 moves[i - 1].velocity.calc_braking_distance()
 
-                pre_accelerating: bool = moves[i - 1].velocity.cur_start_velocity < moves[
-                    i - 1].velocity.cur_end_velocity
-                if pre_accelerating and pre_max_speed < moves[i - 1].velocity.cur_end_velocity:
+                pre_accelerating: bool = moves[i - 1].velocity.start_velocity < moves[i - 1].velocity.end_velocity
+                if pre_accelerating and pre_max_speed < moves[i - 1].velocity.end_velocity:
                     # end speed to high for start speed, acceleration and distance
                     # Move only accelerates but cant get to end velocity
                     # So move the end velocity to the highest velocity possible
-                    moves[i].velocity.cur_end_velocity = pre_max_speed
+                    moves[i].velocity.end_velocity = pre_max_speed
                 elif not pre_accelerating and pre_lengths[pre_velocity_id] < moves[i - 1].velocity.braking_distance:
                     # start speed to high for end speed, deceleration and distance
                     # Move only decelerates but cant get to end velocity
                     # So move the start velocity down so it can get to the end velocity
                     pre_start_velocity = np.sqrt(
-                        2 * pre_lengths[pre_velocity_id] * moves[i - 1].velocity.cur_deceleration +
-                        moves[i - 1].velocity.cur_end_velocity ** 2
+                        2 * pre_lengths[pre_velocity_id] * moves[i - 1].velocity.acceleration +
+                        moves[i - 1].velocity.end_velocity ** 2
                     )
                     self._set_start_velocity(moves, i - 1, pre_start_velocity)
-
-                moves[i - 1].velocity.calc_secondary_moves(pre_lengths)
 
             moves[i].velocity.start_velocity = moves[i - 1].velocity.end_velocity
             pre_lengths, pre_velocity_id = lengths, velocity_id

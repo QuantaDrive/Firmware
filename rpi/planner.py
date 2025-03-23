@@ -86,8 +86,12 @@ class Planner:
         moves = Move.from_program(self.program)
         self.kinematic.create_velocity_profile(moves)
 
+        cur_speed = 0
         for move in moves:
-            self.plan_move(move)
+            move.velocity.calc_based_on_start_velocity(cur_speed)
+            succes, cur_speed = self.plan_move(move)
+            if not succes:
+                break
 
         self.program = None
 
@@ -111,111 +115,38 @@ class Planner:
 
         for i in range(interpolation_steps):
             if self.move_mode_changed:
-                return False
+                return False, 0
             # Calculate the next coordinates
             cur_coordinates += move_per_step
             cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
             if np.isnan(cur_joints).any():
-                return False
+                return False, 0
             # Check moves with the steppers maximum speed/acceleration
             stepper_longest_move = -1
-            ETA = time_to_move
+            eta = time_to_move
             for j in range(len(self.controller.steppers)):
                 if not self.controller.steppers[j].check_move(np.degrees(cur_joints[j]), time_to_move):
                     stepper_longest_move = j
-                    stepper_ETA = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
-                    ETA = max(ETA, stepper_ETA)
-                    cur_speed = max(min_speed, self.interpolation_step_length / ETA)
+                    stepper_eta = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
+                    eta = max(eta, stepper_eta)
+                    cur_speed = max(min_speed, self.interpolation_step_length / eta)
             # Move the steppers and kinematics
             if stepper_longest_move >= 0:
-                self.controller.move_steppers_interpolated(np.degrees(cur_joints), ETA)
+                self.controller.move_steppers_interpolated(np.degrees(cur_joints), eta)
             else:
                 self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
             # Check for acceleration or deceleration
             move_length_left -= self.interpolation_step_length
-            if move_length_left < move.velocity.braking_distance:
+            if (move_length_left < move.velocity.braking_distance and
+                    cur_speed >= move.velocity.end_velocity):
                 cur_speed -= move.velocity.cur_deceleration * time_to_move
-                cur_speed = max(move.velocity.cur_end_velocity, cur_speed)
+                cur_speed = max(move.velocity.end_velocity, cur_speed)
             else:
                 cur_speed += move.velocity.cur_acceleration * time_to_move
-                cur_speed = min(move.velocity.cur_start_velocity, cur_speed)
+                cur_speed = min(move.velocity.start_velocity, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
-        return True
-
-
-    # def plan_move(self, coordinates: list[float | int | None], speed: float = 0,
-    #               relative: bool = False):
-    #     acceleration = self.controller.move_settings.max_accel
-    #     max_speed = speed
-    #     if max_speed == 0:
-    #         max_speed = self.controller.move_settings.max_velocity
-    #
-    #     coordinates = tuple(
-    #         self.kinematic.coordinates[i] if coord is None else coord
-    #         for i, coord in enumerate(coordinates)
-    #     )
-    #
-    #     start_coordinates = self.kinematic.coordinates
-    #     end_coordinates = coordinates
-    #     if relative:
-    #         end_coordinates += start_coordinates
-    #
-    #     move_length = self.kinematic.get_length(start_coordinates, end_coordinates)
-    #     if move_length == 0:
-    #         return False
-    #     interpolation_steps = max(int(move_length / self.interpolation_step_length), 1)
-    #
-    #     # Take the starting speed same as the interpolation step length * 2
-    #     # So the first move is 0.2 second long
-    #     min_speed = self.interpolation_step_length * 2
-    #     cur_speed = min_speed
-    #
-    #     time_to_move = self.interpolation_step_length / cur_speed
-    #
-    #     cur_coordinates = np.array(start_coordinates).astype(float)
-    #     move_length_left = move_length
-    #     move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
-    #
-    #     accelerating = True
-    #     braking_distance = 0
-    #     for i in range(interpolation_steps):
-    #         if self.move_mode_changed:
-    #             return False
-    #         # Calculate the next coordinates
-    #         cur_coordinates += move_per_step
-    #         cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
-    #         if np.isnan(cur_joints).any():
-    #             return False
-    #         # Check moves with the steppers maximum speed/acceleration
-    #         stepper_longest_move = -1
-    #         ETA = time_to_move
-    #         for j in range(len(self.controller.steppers)):
-    #             if not self.controller.steppers[j].check_move(np.degrees(cur_joints[j]), time_to_move):
-    #                 stepper_longest_move = j
-    #                 stepper_ETA = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
-    #                 ETA = max(ETA, stepper_ETA)
-    #                 cur_speed = max(min_speed, self.interpolation_step_length / ETA)
-    #         # Move the steppers and kinematics
-    #         if stepper_longest_move >= 0:
-    #             self.controller.move_steppers_interpolated(np.degrees(cur_joints), ETA)
-    #         else:
-    #             self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
-    #         self.kinematic.coordinates = cur_coordinates
-    #         # Check for acceleration or deceleration
-    #         move_length_left -= self.interpolation_step_length
-    #         if move_length_left < move_length / 2:
-    #             braking_distance = np.abs(((self.interpolation_step_length * 2) ** 2 - cur_speed ** 2) / (2 * acceleration))
-    #         if move_length_left < braking_distance:
-    #             accelerating = False
-    #         if accelerating:
-    #             cur_speed += acceleration * time_to_move
-    #             cur_speed = min(speed, cur_speed)
-    #         else:
-    #             cur_speed -= acceleration * time_to_move
-    #             cur_speed = max(min_speed, cur_speed)
-    #         time_to_move = self.interpolation_step_length / cur_speed
-    #     return True
+        return True, cur_speed
 
 if __name__ == "__main__":
     controller = Controller.from_config("moveo.yaml")
