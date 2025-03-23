@@ -5,8 +5,10 @@ from enum import IntEnum
 from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 
 from controller import Controller
+from kinematics import Move
 from kinematics.base_kinematics import BaseKinematics
 from endpoints import BaseJogEndpoint, program_endpoints
 from parsers import ParserSettings, Program
@@ -56,13 +58,7 @@ class Planner:
         while True:
             if self.move_mode == Planner.MoveMode.AUTO:
                 while not self.move_mode_changed:
-                    if self.program is None:
-                        time.sleep(0.1)
-                        continue
-                    for line in self.program.lines:
-                        coordinates = self.kinematic.convert_coordinates(line.coordinates)
-                        self.plan_move(coordinates, line.speed, line.relative)
-                    self.program = None
+                    self.plan_program()
             elif self.move_mode == Planner.MoveMode.MANUAL:
                 while not self.move_mode_changed:
                     direction = self.jog_controller.get_move()
@@ -73,36 +69,31 @@ class Planner:
         time_to_move = 0.05
 
         end_coordinates = self.kinematic.coordinates
-        new_speed_per_axis = self.kinematic.calc_new_jog_speed(direction, time_to_move)
+        new_speed_per_axis = self.kinematic.calc_new_jog_velocity(direction, time_to_move)
         for i in range(len(end_coordinates)):
             end_coordinates[i] += new_speed_per_axis[i] * time_to_move
 
-        end_joints = self.kinematic.inverse_kinematics(tuple(end_coordinates))
+        end_joints = self.kinematic.inverse_kinematics(end_coordinates)
         if np.isnan(end_joints).any():
             return
         self.controller.move_steppers(end_joints, time_to_move)
 
+    def plan_program(self):
+        if self.program is None:
+            time.sleep(0.5)
+            return
+        self.program.make_absolute(self.kinematic.coordinates)
+        moves = Move.from_program(self.program)
+        self.kinematic.create_velocity_profile(moves)
 
-    def plan_move(self, coordinates: list[float | int | None], speed: float = 0,
-                  relative: bool = False):
-        acceleration = self.controller.move_settings.max_accel
-        if speed == 0:
-            speed = self.controller.move_settings.max_velocity
+        for move in moves:
+            self.plan_move(move)
 
-        coordinates = tuple(
-            self.kinematic.coordinates[i] if coord is None else coord
-            for i, coord in enumerate(coordinates)
-        )
+        self.program = None
 
-        start_coordinates = self.kinematic.coordinates
-        end_coordinates = coordinates
-        if relative:
-            end_coordinates += start_coordinates
 
-        move_length = self.kinematic.get_length(start_coordinates, end_coordinates)
-        if move_length == 0:
-            return False
-        interpolation_steps = max(int(move_length / self.interpolation_step_length), 1)
+    def plan_move(self, move: Move):
+        interpolation_steps = max(int(move.velocity.distance / self.interpolation_step_length), 1)
 
         # Take the starting speed same as the interpolation step length * 2
         # So the first move is 0.2 second long
@@ -111,12 +102,13 @@ class Planner:
 
         time_to_move = self.interpolation_step_length / cur_speed
 
+        start_coordinates = self.kinematic.coordinates
+        end_coordinates = move.coordinate
+
         cur_coordinates = np.array(start_coordinates).astype(float)
-        move_length_left = move_length
+        move_length_left = move.velocity.distance
         move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
 
-        accelerating = True
-        braking_distance = 0
         for i in range(interpolation_steps):
             if self.move_mode_changed:
                 return False
@@ -141,21 +133,89 @@ class Planner:
                 self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
             self.kinematic.coordinates = cur_coordinates
             # Check for acceleration or deceleration
-            if acceleration == 0:
-                continue
             move_length_left -= self.interpolation_step_length
-            if move_length_left < move_length / 2:
-                braking_distance = np.abs(((self.interpolation_step_length * 2) ** 2 - cur_speed ** 2) / (2 * acceleration))
-            if move_length_left < braking_distance:
-                accelerating = False
-            if accelerating:
-                cur_speed += acceleration * time_to_move
-                cur_speed = min(speed, cur_speed)
+            if move_length_left < move.velocity.braking_distance:
+                cur_speed -= move.velocity.cur_deceleration * time_to_move
+                cur_speed = max(move.velocity.cur_end_velocity, cur_speed)
             else:
-                cur_speed -= acceleration * time_to_move
-                cur_speed = max(min_speed, cur_speed)
+                cur_speed += move.velocity.cur_acceleration * time_to_move
+                cur_speed = min(move.velocity.cur_start_velocity, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
         return True
+
+
+    # def plan_move(self, coordinates: list[float | int | None], speed: float = 0,
+    #               relative: bool = False):
+    #     acceleration = self.controller.move_settings.max_accel
+    #     max_speed = speed
+    #     if max_speed == 0:
+    #         max_speed = self.controller.move_settings.max_velocity
+    #
+    #     coordinates = tuple(
+    #         self.kinematic.coordinates[i] if coord is None else coord
+    #         for i, coord in enumerate(coordinates)
+    #     )
+    #
+    #     start_coordinates = self.kinematic.coordinates
+    #     end_coordinates = coordinates
+    #     if relative:
+    #         end_coordinates += start_coordinates
+    #
+    #     move_length = self.kinematic.get_length(start_coordinates, end_coordinates)
+    #     if move_length == 0:
+    #         return False
+    #     interpolation_steps = max(int(move_length / self.interpolation_step_length), 1)
+    #
+    #     # Take the starting speed same as the interpolation step length * 2
+    #     # So the first move is 0.2 second long
+    #     min_speed = self.interpolation_step_length * 2
+    #     cur_speed = min_speed
+    #
+    #     time_to_move = self.interpolation_step_length / cur_speed
+    #
+    #     cur_coordinates = np.array(start_coordinates).astype(float)
+    #     move_length_left = move_length
+    #     move_per_step = ((np.array(end_coordinates) - np.array(start_coordinates)) / interpolation_steps).astype(float)
+    #
+    #     accelerating = True
+    #     braking_distance = 0
+    #     for i in range(interpolation_steps):
+    #         if self.move_mode_changed:
+    #             return False
+    #         # Calculate the next coordinates
+    #         cur_coordinates += move_per_step
+    #         cur_joints = self.kinematic.inverse_kinematics(tuple(cur_coordinates))
+    #         if np.isnan(cur_joints).any():
+    #             return False
+    #         # Check moves with the steppers maximum speed/acceleration
+    #         stepper_longest_move = -1
+    #         ETA = time_to_move
+    #         for j in range(len(self.controller.steppers)):
+    #             if not self.controller.steppers[j].check_move(np.degrees(cur_joints[j]), time_to_move):
+    #                 stepper_longest_move = j
+    #                 stepper_ETA = self.controller.steppers[j].ETA(np.degrees(cur_joints[j]))
+    #                 ETA = max(ETA, stepper_ETA)
+    #                 cur_speed = max(min_speed, self.interpolation_step_length / ETA)
+    #         # Move the steppers and kinematics
+    #         if stepper_longest_move >= 0:
+    #             self.controller.move_steppers_interpolated(np.degrees(cur_joints), ETA)
+    #         else:
+    #             self.controller.move_steppers(np.degrees(cur_joints), time_to_move)
+    #         self.kinematic.coordinates = cur_coordinates
+    #         # Check for acceleration or deceleration
+    #         move_length_left -= self.interpolation_step_length
+    #         if move_length_left < move_length / 2:
+    #             braking_distance = np.abs(((self.interpolation_step_length * 2) ** 2 - cur_speed ** 2) / (2 * acceleration))
+    #         if move_length_left < braking_distance:
+    #             accelerating = False
+    #         if accelerating:
+    #             cur_speed += acceleration * time_to_move
+    #             cur_speed = min(speed, cur_speed)
+    #         else:
+    #             cur_speed -= acceleration * time_to_move
+    #             cur_speed = max(min_speed, cur_speed)
+    #         time_to_move = self.interpolation_step_length / cur_speed
+    #     return True
 
 if __name__ == "__main__":
     controller = Controller.from_config("moveo.yaml")
@@ -165,8 +225,8 @@ if __name__ == "__main__":
 
     planner = Planner(controller)
 
-    planner.plan_move((0, 0, 600, np.radians(0), np.radians(0), np.radians(0)))
-    print()
+    # planner.plan_move((0, 0, 600, np.radians(0), np.radians(0), np.radians(0)))
+    # print()
     # planner.plan_move((300, 0, 525, np.radians(90), np.radians(0),  np.radians(0)))
     # print()
     # planner.plan_move((350, 0, 452.5, np.radians(0), np.radians(90.0), np.radians(0)))

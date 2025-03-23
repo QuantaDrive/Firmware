@@ -1,3 +1,5 @@
+from .move import Move
+
 from .arm_6dof import Arm6DoF, Arm6DoFModel
 
 # to add more kinematics types just put | between them

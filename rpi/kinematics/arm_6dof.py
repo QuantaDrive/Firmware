@@ -6,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import sympy as sp
 
+from kinematics import Move
 from kinematics.base_kinematics import BaseKinematics, BaseKinematicsModel
 
 
@@ -44,34 +45,18 @@ class Arm6DoF(BaseKinematics):
     def cur_direction(self, direction: list[float | int]):
         self._cur_direction = self.normalize_direction(direction)
 
+    def convert_coordinates(self, coordinates: list[float | int | None] | npt.NDArray[float | int | None]) -> npt.NDArray[float | int]:
+        return np.array([
+            coordinates[0] if coordinates[0] is not None else self.coordinates[0],
+            coordinates[1] if coordinates[1] is not None else self.coordinates[1],
+            coordinates[2] if coordinates[2] is not None else self.coordinates[2],
+            np.radians(coordinates[3]) if coordinates[3] is not None else self.coordinates[3],
+            np.radians(coordinates[4]) if coordinates[4] is not None else self.coordinates[4],
+            np.radians(coordinates[5]) if coordinates[5] is not None else self.coordinates[5]
+        ])
 
     @staticmethod
-    def get_length(start_coordinates: list[float | int], end_coordinates: list[float | int]):
-        translation_length = np.sqrt((end_coordinates[0] - start_coordinates[0])**2 + (end_coordinates[1] - start_coordinates[1])**2 + (end_coordinates[2] - start_coordinates[2])**2)
-        # if rotation move is greater than the translation the speed becomes deg per second
-        rotation_z = np.abs(end_coordinates[3] - start_coordinates[3])
-        rotation_y = np.abs(end_coordinates[4] - start_coordinates[4])
-        rotation_x = np.abs(end_coordinates[5] - start_coordinates[5])
-        return max(translation_length, np.degrees(rotation_z), np.degrees(rotation_y), np.degrees(rotation_x))
-
-    @staticmethod
-    def convert_coordinates(coordinates: list[float | int | None]) -> list[float | int | None]:
-        return [
-            coordinates[0],
-            coordinates[1],
-            coordinates[2],
-            np.radians(coordinates[3]) if coordinates[3] is not None else None,
-            np.radians(coordinates[4]) if coordinates[4] is not None else None,
-            np.radians(coordinates[5]) if coordinates[5] is not None else None
-        ]
-
-    def get_speed_dir_size(self, speed: list[float | int] | int | float = None) -> npt.NDArray[float | int]:
-        if speed is None:
-            speed = self._cur_speed
-        return np.array([speed[0], speed[0], speed[0], speed[1], speed[2], speed[3]])
-
-    @staticmethod
-    def normalize_direction(direction: list[float | int]):
+    def normalize_direction(direction: list[float | int] | npt.NDArray[float | int]) -> npt.NDArray[float | int]:
         direction = np.array(direction)
         direction_xyz = direction[:3]
         direction_xyz_length = np.sqrt(direction_xyz[0] ** 2 + direction_xyz[1] ** 2 + direction_xyz[2] ** 2)
@@ -81,7 +66,32 @@ class Arm6DoF(BaseKinematics):
 
         return np.concatenate((direction_xyz_normalized, direction_ypr))
 
-    def calc_new_jog_speed(self, new_direction: list[float | int], time_to_move: float | int):
+    @staticmethod
+    def angle_between_directions(direction1: npt.NDArray[float | int], direction2: npt.NDArray[float | int]) -> npt.NDArray[float | int]:
+        cos_alpha_xyz = np.dot(Arm6DoF.normalize_direction(direction1)[:3], Arm6DoF.normalize_direction(direction2)[:3])
+        cos_alpha_z = np.dot(Arm6DoF.normalize_direction(direction1)[3], Arm6DoF.normalize_direction(direction2)[3])
+        cos_alpha_y = np.dot(Arm6DoF.normalize_direction(direction1)[4], Arm6DoF.normalize_direction(direction2)[4])
+        cos_alpha_x = np.dot(Arm6DoF.normalize_direction(direction1)[5], Arm6DoF.normalize_direction(direction2)[5])
+        cos_alpha = np.array([cos_alpha_xyz, cos_alpha_z, cos_alpha_y, cos_alpha_x])
+        return np.clip(cos_alpha, 0, 1)
+
+    @staticmethod
+    def get_length(start_coordinates: npt.NDArray[float | int], end_coordinates: npt.NDArray[float | int]) -> tuple[npt.NDArray[float | int], int]:
+        translation_length = np.sqrt((end_coordinates[0] - start_coordinates[0])**2 + (end_coordinates[1] - start_coordinates[1])**2 + (end_coordinates[2] - start_coordinates[2])**2)
+        # if rotation move is greater than the translation the speed becomes deg per second
+        rotation_z = np.abs(end_coordinates[3] - start_coordinates[3])
+        rotation_y = np.abs(end_coordinates[4] - start_coordinates[4])
+        rotation_x = np.abs(end_coordinates[5] - start_coordinates[5])
+        lengths = np.array([translation_length, np.degrees(rotation_z), np.degrees(rotation_y), np.degrees(rotation_x)])
+        length_index = np.argmax(lengths)
+        return lengths, length_index
+
+    def get_speed_dir_size(self, speed: list[float | int] = None) -> npt.NDArray[float | int]:
+        if speed is None:
+            speed = self._cur_speed
+        return np.array([speed[0], speed[0], speed[0], speed[1], speed[2], speed[3]])
+
+    def calc_new_jog_velocity(self, new_direction: list[float | int], time_to_move: float | int):
         cur_speed_per_axis = self.cur_direction * self.get_speed_dir_size()
         cur_max_accel = self.cur_direction * self.settings.max_accel
         cur_max_decel = self.cur_direction * self.settings.jog_decel
