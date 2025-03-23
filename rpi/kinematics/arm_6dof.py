@@ -98,7 +98,7 @@ class Arm6DoF(BaseKinematics):
 
         new_direction_normalized = self.normalize_direction(new_direction)
         # if you just multiply the new direction with the max speed the max speed will be sqrt(3) times higher than it should be
-        max_velocity_new_direction = new_direction_normalized * np.abs(new_direction) * self.settings.max_velocity
+        max_velocity_new_direction = new_direction_normalized * np.abs(new_direction) * self.settings.jog_velocity
 
         # the new speed per axis (absolute value)
         new_speed_per_axis = np.array([0, 0, 0, 0, 0, 0])
@@ -276,7 +276,7 @@ class Arm6DoFModel(BaseKinematicsModel):
     dh_params: list[list[float]]
 
     def get_kinematics(self) -> Arm6DoF:
-        return Arm6DoF(self.dh_params)
+        return Arm6DoF(self)
 
 if __name__ == "__main__":
     dh_params = np.array([

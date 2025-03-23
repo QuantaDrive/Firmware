@@ -5,7 +5,6 @@ from enum import IntEnum
 from typing import Optional
 
 import numpy as np
-import numpy.typing as npt
 
 from controller import Controller
 from kinematics import Move
@@ -78,6 +77,10 @@ class Planner:
             return
         self.controller.move_steppers(end_joints, time_to_move)
 
+    def run_move(self, move: Move):
+        self.kinematic.create_velocity_profile(move)
+        self.plan_move(move)
+
     def plan_program(self):
         if self.program is None:
             time.sleep(0.5)
@@ -102,7 +105,10 @@ class Planner:
         # Take the starting speed same as the interpolation step length * 2
         # So the first move is 0.2 second long
         min_speed = self.interpolation_step_length * 2
-        cur_speed = min_speed
+        cur_speed = max(
+            min_speed,
+            move.velocity.start_velocity
+        )
 
         time_to_move = self.interpolation_step_length / cur_speed
 
@@ -140,11 +146,11 @@ class Planner:
             move_length_left -= self.interpolation_step_length
             if (move_length_left < move.velocity.braking_distance and
                     cur_speed >= move.velocity.end_velocity):
-                cur_speed -= move.velocity.cur_deceleration * time_to_move
+                cur_speed -= move.velocity.acceleration * time_to_move
                 cur_speed = max(move.velocity.end_velocity, cur_speed)
             else:
-                cur_speed += move.velocity.cur_acceleration * time_to_move
-                cur_speed = min(move.velocity.start_velocity, cur_speed)
+                cur_speed += move.velocity.acceleration * time_to_move
+                cur_speed = min(move.velocity.cruise_velocity, cur_speed)
             time_to_move = self.interpolation_step_length / cur_speed
         return True, cur_speed
 

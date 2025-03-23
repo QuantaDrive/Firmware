@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 
+from kinematics import Move
 from planner import Planner
 
 planner = Planner.from_config("moveo.yaml")
@@ -18,7 +19,9 @@ planner = Planner.from_config("moveo.yaml")
 threading.Thread(target=planner.run, daemon=True).start()
 
 print("Start")
-planner.plan_move((300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)))
+move = Move()
+move.coordinate = np.array([300, 0, 525, np.radians(0), np.radians(90),  np.radians(0)])
+planner.run_move(move)
 
 
 while True:
@@ -26,6 +29,7 @@ while True:
     if command == "help":
         print("AUTO: Set the planner to automatic mode")
         print("MANUAL: Set the planner to manual mode")
+        print("MDI: Go into MDI mode")
         print("LOAD: Load the program from buffer")
         print("EXIT: Exit the program")
     elif command == "auto":

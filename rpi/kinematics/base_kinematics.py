@@ -22,7 +22,7 @@ class BaseKinematics(ABC):
         self._cur_direction: npt.NDArray[float | int]
         self._cur_speed: npt.NDArray[float | int]
 
-        self.settings = settings
+        self.settings: type[BaseKinematicsModel] = settings
 
     @property
     def coordinates(self) -> npt.NDArray[float | int]:
@@ -68,7 +68,7 @@ class BaseKinematics(ABC):
             return
 
         if i == 1:
-            pre_lengths, pre_velocity_id = self.get_length(self._cur_coordinates, moves[i].coordinate)
+            pre_lengths, pre_velocity_id = self.get_length(self.coordinates, moves[i].coordinate)
         else:
             pre_lengths, pre_velocity_id = self.get_length(moves[i - 2].coordinate, moves[i - 1].coordinate)
 
@@ -91,10 +91,28 @@ class BaseKinematics(ABC):
             )
             self._set_start_velocity(moves, i - 1, pre_start_velocity)
 
-    def create_velocity_profile(self, moves: list[Move]):
+    def create_velocity_profile(self, moves: list[Move] | Move):
+        if isinstance(moves, Move):
+            moves.coordinate = self.convert_coordinates(moves.coordinate)
+
+            lengths, velocity_id = self.get_length(self.coordinates, moves.coordinate)
+
+            moves.velocity.id = velocity_id
+            moves.velocity.distance = lengths[velocity_id]
+
+            moves.velocity.cruise_velocity = min(
+                moves.velocity.cruise_velocity,
+                self.settings.max_velocity
+            )
+            if moves.velocity.cruise_velocity == 0:
+                moves.velocity.cruise_velocity = self.settings.max_velocity
+
+            moves.velocity.acceleration = self.settings.max_accel
+            return
+
         moves[0].coordinate = self.convert_coordinates(moves[0].coordinate)
 
-        lengths, velocity_id = self.get_length(self._cur_coordinates, moves[0].coordinate)
+        lengths, velocity_id = self.get_length(self.coordinates, moves[0].coordinate)
         pre_lengths, pre_velocity_id = lengths, velocity_id
         for i in range(len(moves)):
             if i > 0:
@@ -103,6 +121,12 @@ class BaseKinematics(ABC):
 
             moves[i].velocity.id = velocity_id
             moves[i].velocity.distance = lengths[velocity_id]
+            moves[i].velocity.cruise_velocity = min(
+                moves[i].velocity.cruise_velocity,
+                self.settings.max_velocity
+            )
+            if moves[i].velocity.cruise_velocity == 0:
+                moves[i].velocity.cruise_velocity = self.settings.max_velocity
 
             moves[i].velocity.acceleration = self.settings.max_accel
 
