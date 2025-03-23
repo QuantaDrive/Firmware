@@ -120,7 +120,8 @@ class Planner:
                     cur_speed >= move.velocity.end_velocity):
                 distance_breaking = move.velocity.braking_distance - (move.velocity.distance - distance_traveled)
                 cur_speed = np.sqrt(
-                    move.velocity.cruise_velocity ** 2 - 2 * distance_breaking * move.velocity.acceleration
+                    max(move.velocity.cruise_velocity ** 2 - 2 * distance_breaking * move.velocity.acceleration,
+                        0)
                 )
                 cur_speed = max(move.velocity.end_velocity, cur_speed)
             else:
@@ -128,6 +129,7 @@ class Planner:
                     2 * distance_traveled * move.velocity.acceleration
                 )
                 cur_speed = min(move.velocity.cruise_velocity, cur_speed)
+            cur_speed = max(cur_speed, 0.1)
 
             time_to_move = self.interpolation_step_length / cur_speed
 

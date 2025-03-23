@@ -20,4 +20,9 @@ class WebProgramController(BaseProgramEndpoint):
 @WebProgramController.app.post("/gcode")
 async def new_gcode(request: Request, background_tasks: BackgroundTasks):
     body = (await request.body()).decode("utf-8")
+    body = """
+    G0 X300 Z525
+    G0 Y100
+    G0 Y-100
+    """
     background_tasks.add_task(parse_gcode, body)

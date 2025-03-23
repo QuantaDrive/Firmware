@@ -136,7 +136,10 @@ class BaseKinematics(ABC):
 
             if velocity_id == pre_velocity_id:
                 cur_direction = moves[i].coordinate - moves[i - 1].coordinate
-                pre_direction = moves[i - 1].coordinate - moves[i - 2].coordinate
+                if i == 1:
+                    pre_direction = moves[i - 1].coordinate - self.coordinates
+                else:
+                    pre_direction = moves[i - 1].coordinate - moves[i - 2].coordinate
                 angle_between_directions = self.angle_between_directions(cur_direction, pre_direction)
 
                 moves[i - 1].velocity.end_velocity = (moves[i].velocity.cruise_velocity * angle_between_directions[velocity_id])

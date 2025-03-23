@@ -10,30 +10,30 @@ def parse_gcode_MDI():
     while True:
         gcode_command = yield program_line
         program_line = None
-        line = gcode_command.strip().upper()
-        if line.startswith(";"):
+        gcode_command = gcode_command.strip().upper()
+        if gcode_command.startswith(";"):
             continue
-        line_tokens = gcode_command.split(";")[0].split(" ")
-        if line_tokens[0] == "G0":
+        gcode_tokens = gcode_command.split(";")[0].split(" ")
+        if gcode_tokens[0] == "G0":
             coordinates = [None for _ in range(len(coordinate_names))]
-            for i in range(1, len(line_tokens)):
-                coordinate_index = coordinate_name_index[line_tokens[i][0]]
-                coordinates[coordinate_index] = float(line_tokens[i][1:])
+            for i in range(1, len(gcode_tokens)):
+                coordinate_index = coordinate_name_index[gcode_tokens[i][0]]
+                coordinates[coordinate_index] = float(gcode_tokens[i][1:])
             program_line = Program.ProgramLine(coordinates, float('inf'), relative)
-        elif line_tokens[0] == "G1":
+        elif gcode_tokens[0] == "G1":
             coordinates = [None for _ in range(len(coordinate_names))]
             speed = pre_speed
-            for i in range(1, len(line_tokens)):
-                if line_tokens[i][0] == "F":
-                    speed = float(line_tokens[i][1:])
+            for i in range(1, len(gcode_tokens)):
+                if gcode_tokens[i][0] == "F":
+                    speed = float(gcode_tokens[i][1:])
                     continue
-                coordinate_index = coordinate_name_index[line_tokens[i][0]]
-                coordinates[coordinate_index] = float(line_tokens[i][1:])
+                coordinate_index = coordinate_name_index[gcode_tokens[i][0]]
+                coordinates[coordinate_index] = float(gcode_tokens[i][1:])
             program_line = Program.ProgramLine(coordinates, speed, relative)
             pre_speed = speed
-        elif line_tokens[0] == "G90":
+        elif gcode_tokens[0] == "G90":
             relative = False
-        elif line_tokens[0] == "G91":
+        elif gcode_tokens[0] == "G91":
             relative = True
 
 

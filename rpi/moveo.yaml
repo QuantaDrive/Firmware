@@ -19,8 +19,8 @@ kinematics:
       - [180.0,   0.0,  77.5,   0.0]
     jog_velocity: 15
     jog_decel: 50
-    max_velocity: 75
-    max_accel: 25
+    max_velocity: 50
+    max_accel: 20
 
 shift_registers:
   - name: stepper_dir
