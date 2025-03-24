@@ -21,8 +21,33 @@ threading.Thread(target=planner.run, daemon=True).start()
 print("Start")
 move = Move()
 move.velocity.cruise_velocity = 50
-move.coordinate = np.array([300, 0, 525, 0, 90,  0])
+move.coordinate = np.array([300, 0, 525, 0, 0,  0])
 planner.run_move(move)
+
+# moves = []
+# move = Move()
+# move.coordinate = np.array([None, 150, None, None, None,  None])
+# moves.append(move)
+# move = Move()
+# move.coordinate = np.array([None, -150, None, None, None,  None])
+# moves.append(move)
+# move = Move()
+# move.coordinate = np.array([None, 0, None, None, None,  None])
+# moves.append(move)
+# move = Move()
+# move.coordinate = np.array([200, None, 540, 0, 0,  None])
+# moves.append(move)
+# for i in range(10):
+#     move = Move()
+#     move.coordinate = np.array([None, 75, None, 45, None,  None])
+#     moves.append(move)
+#     move = Move()
+#     move.coordinate = np.array([None, -75, None, -45, None,  None])
+#     moves.append(move)
+# planner.kinematic.create_velocity_profile(moves)
+#
+# for move in moves:
+#     planner.plan_move(move)
 
 while True:
     command = input("Command: ").lower()

@@ -70,7 +70,7 @@ class Controller(BaseModel):
         if os.environ.get("MCU_DEBUG") is not None:
             self._move_queue = queue.Queue(1)
         else:
-            self._move_queue = queue.Queue()
+            self._move_queue = queue.Queue(500)
 
     @classmethod
     def from_config(cls, config_file):
@@ -229,7 +229,7 @@ class Controller(BaseModel):
             self._move_queue.get(block=False)
             self._move_queue.task_done()
         if mode == Controller.MoveMode.CACHED:
-            self._move_queue.maxsize = 0
+            self._move_queue.maxsize = 500
         elif mode == Controller.MoveMode.REALTIME:
             self._move_queue.maxsize = 1
         command: bytearray = bytearray()
@@ -278,13 +278,11 @@ class Controller(BaseModel):
                         self._move_queue.task_done()
                 else:
                     if transmit_move:
-                        # print("Waiting for move...")
                         if self._move_mode == Controller.MoveMode.REALTIME:
                             time.sleep(0.025)
                         elif self._move_mode == Controller.MoveMode.CACHED:
                             time.sleep(0.1)
                     else:
-                        # print("Waiting for move transmit request...")
                         transmit_move_check = connection.read(1)
                         if transmit_move_check == b'\xFF':
                             transmit_move = True

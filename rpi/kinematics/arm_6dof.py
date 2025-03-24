@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -45,14 +45,16 @@ class Arm6DoF(BaseKinematics):
     def cur_direction(self, direction: list[float | int]):
         self._cur_direction = self.normalize_direction(direction)
 
-    def convert_coordinates(self, coordinates: list[float | int | None] | npt.NDArray[float | int | None]) -> npt.NDArray[float | int]:
+    def convert_coordinates(self, coordinates: list[float | int | None] | npt.NDArray[float | int | None], pre_coordinates: Optional[list[float | int | None] | npt.NDArray[float | int | None]] = None) -> npt.NDArray[float | int]:
+        if pre_coordinates is None:
+            pre_coordinates = self.coordinates
         return np.array([
-            coordinates[0] if coordinates[0] is not None else self.coordinates[0],
-            coordinates[1] if coordinates[1] is not None else self.coordinates[1],
-            coordinates[2] if coordinates[2] is not None else self.coordinates[2],
-            np.radians(coordinates[3]) if coordinates[3] is not None else self.coordinates[3],
-            np.radians(coordinates[4]) if coordinates[4] is not None else self.coordinates[4],
-            np.radians(coordinates[5]) if coordinates[5] is not None else self.coordinates[5]
+            coordinates[0] if coordinates[0] is not None else pre_coordinates[0],
+            coordinates[1] if coordinates[1] is not None else pre_coordinates[1],
+            coordinates[2] if coordinates[2] is not None else pre_coordinates[2],
+            np.radians(coordinates[3]) if coordinates[3] is not None else pre_coordinates[3],
+            np.radians(coordinates[4]) if coordinates[4] is not None else pre_coordinates[4],
+            np.radians(coordinates[5]) if coordinates[5] is not None else pre_coordinates[5]
         ])
 
     @staticmethod

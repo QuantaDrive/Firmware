@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -37,7 +37,7 @@ class BaseKinematics(ABC):
         self._cur_coordinates = coordinates
 
     @abstractmethod
-    def convert_coordinates(self, coordinates: list[float | int | None]) -> npt.NDArray[float | int]:
+    def convert_coordinates(self, coordinates: list[float | int | None] | npt.NDArray[float | int | None], pre_coordinates: Optional[list[float | int | None] | npt.NDArray[float | int | None]] = None) -> npt.NDArray[float | int]:
         pass
 
     @staticmethod
@@ -117,7 +117,7 @@ class BaseKinematics(ABC):
         pre_lengths, pre_velocity_id = lengths, velocity_id
         for i in range(len(moves)):
             if i > 0:
-                moves[i].coordinate = self.convert_coordinates(moves[i].coordinate)
+                moves[i].coordinate = self.convert_coordinates(moves[i].coordinate, moves[i - 1].coordinate)
                 lengths, velocity_id = self.get_length(moves[i - 1].coordinate, moves[i].coordinate)
 
             moves[i].velocity.id = velocity_id
@@ -168,6 +168,7 @@ class BaseKinematics(ABC):
 
             moves[i].velocity.start_velocity = moves[i - 1].velocity.end_velocity
             pre_lengths, pre_velocity_id = lengths, velocity_id
+        moves[-1].velocity.calc_braking_distance()
 
     @abstractmethod
     def forward_kinematics(self, joints: tuple[float | int, ...], toolframe_matrix=sp.eye(4)) -> tuple[float | int, ...]:
