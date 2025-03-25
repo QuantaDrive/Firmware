@@ -61,7 +61,6 @@ class MultiplexerPin(Pin):
     def pin_number_config(self) -> bytes:
         return int((1 << 6) + (self.inverted << 5) + (self.mux_id << 3) + self.mux_address).to_bytes(1, "big")
 
-
 class ShiftRegisterPin(Pin):
     type: Literal["Shift-Register"]
     inverted: bool = Field(default=False)

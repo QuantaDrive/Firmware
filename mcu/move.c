@@ -1,3 +1,4 @@
+#include "pin.h"
 #include "move.h"
 #include "stepper.h"
 
@@ -60,11 +61,12 @@ void _check_move() {
 }
 
 void _move_queue_loop() {
-    uint64_t start = time_us_64();
+    uint64_t last_move = time_us_64();
+    uint64_t last_input_check = time_us_64();
     uint64_t last_move_reminder = time_us_64();
     while (true) {
-        if (time_us_64() - start >= US_PER_TICK) {
-            start = time_us_64();
+        if (time_us_64() - last_move >= US_PER_TICK) {
+            last_move = time_us_64();
             _check_move();
             if (time_us_64() - last_move_reminder >= 150) {
                 if (move_cache_enabled && queue_get_level(&move_queue) < 2) {                   
@@ -74,8 +76,11 @@ void _move_queue_loop() {
                     stdio_putchar_raw(0xFF); 
                     last_move_reminder = time_us_64();
                 }
-                
             }
+        }
+        if (time_us_64() - last_input_check >= US_DEBOUNCE) {
+            last_input_check = time_us_64();
+            pin_check_interrupt();
         }
     }
 }

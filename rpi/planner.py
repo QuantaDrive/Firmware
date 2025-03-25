@@ -23,6 +23,7 @@ class Planner:
 
     def __init__(self, controller: Controller):
         self.controller: Controller = controller
+        controller.set_interrupt_callback(Controller.InterruptActions.START, self.load_program)
         self.kinematic: BaseKinematics = controller.kinematic_settings.get_kinematics()
         self.jog_controller: BaseJogEndpoint = controller.move_settings.get_jog_controller(self.kinematic.inverse_kinematics_coordinate_names)
 
@@ -51,7 +52,9 @@ class Planner:
         self.move_mode_changed = True
 
     def load_program(self):
-        self.program = Program.program_buffer
+        print("Loading program")
+        if self.program is None:
+            self.program = Program.program_buffer
 
     def run(self):
         while True:

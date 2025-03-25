@@ -4,6 +4,8 @@
 
 struct mux muxes[4];
 struct shift_register shift_registers[4];
+uint8_t interrupt_pin_count = 0;
+struct interrupt_pin interrupt_pins[MAX_INTERRUPT_PINS];
 
 void _mux_init(uint8_t id) {
     muxes[id].data = 31;
@@ -58,6 +60,18 @@ void pin_input_init(pin pin) {
     }
     gpio_set_function_masked(1 << pin, GPIO_FUNC_SIO);
     gpio_set_dir_in_masked(1 << pin);
+}
+
+void pin_interrupt_init(pin pin) {
+    if (interrupt_pin_count >= MAX_INTERRUPT_PINS) {
+        return;
+    }
+    pin_input_init(pin);
+    interrupt_pins[interrupt_pin_count].pin = pin;
+    bool invert = pin >> 5 & 0b00000001;
+    interrupt_pins[interrupt_pin_count].debounce_value = invert;
+    interrupt_pins[interrupt_pin_count].value = invert;
+    interrupt_pin_count++;
 }
 
 void mux_init(struct mux *mux, uint8_t id, bool output) {
@@ -197,5 +211,21 @@ bool pin_get_value(pin pin) {
         break;
     default:
         break;
+    }
+}
+
+void pin_check_interrupt() {
+    for (uint8_t i = 0; i < interrupt_pin_count; i++) {
+        bool value = pin_get_value(interrupt_pins[i].pin);
+        if (value != interrupt_pins[i].debounce_value) {
+            interrupt_pins[i].debounce_value = value;
+        } else {
+            if (value != interrupt_pins[i].value) {
+                interrupt_pins[i].value = value;
+                uint8_t pin = (interrupt_pins[i].pin & 0b00011111);
+                uint8_t data = 0b10000000 | (value << 5) | pin;
+                stdio_putchar_raw(data);
+            }
+        }
     }
 }

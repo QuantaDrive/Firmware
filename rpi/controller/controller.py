@@ -9,7 +9,7 @@ from dataclasses import field as dataclass_field
 from enum import IntEnum
 
 import yaml
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Callable
 
 import serial
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from kinematics import kinematic_types
 from endpoints import jog_controller_types
 from controller import Stepper
-from controller.pin import pin_set_lookup_tables, Multiplexer, ShiftRegister, Direction, ManualPin
+from controller.pin import pin_set_lookup_tables, Multiplexer, ShiftRegister, Direction, ManualPin, InterruptPin
 
 
 class Controller(BaseModel):
@@ -30,12 +30,16 @@ class Controller(BaseModel):
         REALTIME = 0
         CACHED = 1
 
+    class InterruptActions(IntEnum):
+        START = 0
+
     serial_mcu : Optional[str] = Field(default=None)
     kinematic_settings: kinematic_types = Field(..., alias='kinematics', discriminator="type")
     multiplexers: List[Multiplexer] = Field(default=[], max_length=4)
     shift_registers: List[ShiftRegister] = Field(default=[], max_length=4)
     steppers: List[Stepper] = Field(default=[])
     manual_pins: List[ManualPin] = Field(default=[])
+    interrupt_pins: List[InterruptPin] = Field(default=[])
 
     move_settings: jog_controller_types = Field(..., discriminator="jog_controller")
 
@@ -43,6 +47,7 @@ class Controller(BaseModel):
     _move_queue: queue.Queue = PrivateAttr()
     _move_mode: MoveMode = PrivateAttr(default=MoveMode.CACHED)
     _move_thread_pause: bool = PrivateAttr(default=False)
+    _interrupt_callbacks: List[Callable] = PrivateAttr(default=[])
 
     @field_validator("multiplexers", mode="after")
     @classmethod
@@ -115,6 +120,9 @@ class Controller(BaseModel):
     def connect(self):
         self.find_device()
         threading.Thread(target=self._send_command_worker, daemon=True).start()
+
+    def set_interrupt_callback(self, action: InterruptActions, callback: callable):
+        self._interrupt_callbacks.append(callback)
 
     # Reset controller
     def reset(self):
@@ -218,6 +226,9 @@ class Controller(BaseModel):
             self._command_queue.put(self.Command(1, commands[0]))
             if len(commands) > 1:
                 self._command_queue.put(self.Command(2, commands[1]))
+        for i in range(len(self.interrupt_pins)):
+            command = self.interrupt_pins[i].get_config()
+            self._command_queue.put(self.Command(1, command))
         for i in range(len(self.steppers)):
             for command in self.steppers[i].get_config(i):
                 self._command_queue.put(self.Command(1, command))
@@ -264,8 +275,17 @@ class Controller(BaseModel):
                         print(str(command_out).replace('\\x', ' ').replace('\\r', ' 0d').replace('\\n', ' 0a'))
                     op_code_check = connection.read(1)
                     while op_code_check != command_out[0:1]:
-                        if op_code_check == b'\xFF':
-                            transmit_move = True
+                        if op_code_check >= b'\x80':
+                            if op_code_check == b'\xFF':    # Keep-alive
+                                transmit_move = True
+                            elif op_code_check <= b'\xBF':  # Interrupt triggered
+                                command = int.from_bytes(op_code_check, "big")
+                                value = bool(command & 32)
+                                if value:
+                                    pin_number = command & 31
+                                    for i in range(len(self.interrupt_pins)):
+                                        if self.interrupt_pins[i].pin.number == pin_number:
+                                            self._interrupt_callbacks[i]()
                         else:
                             print("Error:", str(op_code_check) + " != " + str(command_out[0:1]))
                             print("Command:", str(command_out).replace('\\x', ' ').replace('\\r', ' 0d').replace('\\n', ' 0a'))
@@ -284,6 +304,14 @@ class Controller(BaseModel):
                             time.sleep(0.1)
                     else:
                         transmit_move_check = connection.read(1)
-                        if transmit_move_check == b'\xFF':
+                        if transmit_move_check == b'\xFF':  # Keep-alive
                             transmit_move = True
+                        elif transmit_move_check <= b'0b10111111':  # Interrupt triggered
+                            command = int.from_bytes(transmit_move_check[1:], "big")
+                            value = bool(command & int(b'0b00100000'))
+                            if value:
+                                pin_number = command & int(b'0b00011111')
+                                for i in range(len(self.interrupt_pins)):
+                                    if self.interrupt_pins[i].pin.number == pin_number:
+                                        self._interrupt_callbacks[i]()
                         last_keep_alive = time.time()

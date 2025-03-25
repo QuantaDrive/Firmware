@@ -15,4 +15,5 @@ from .multiplexer import Multiplexer
 from .shift_register import ShiftRegister
 
 from .manual_pin import ManualPin
+from .interrupt_pin import InterruptPin
 

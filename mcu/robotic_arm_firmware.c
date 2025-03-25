@@ -192,6 +192,11 @@ int main() {
                 pin_output_init(pin);
                 break;
             }
+            case 0b00101000: {  // configure interrupt pin
+                uint8_t pin = stdio_getchar();
+                pin_interrupt_init(pin);
+                break;
+            }
             case 0b00111100: {  // set cache mode
                 uint8_t cache_mode = object_conf & 0b00000001;
                 if (cache_mode == 0) {

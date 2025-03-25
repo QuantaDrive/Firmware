@@ -34,6 +34,9 @@ manual_pins:
   - pin: 11
   - pin: 12
 
+interrupt_pins:
+  - pin: 7
+
 steppers:
   - mm_per_rev: 360
     gear_ratio: 9.8
