@@ -221,21 +221,16 @@ class Arm6DoF(BaseKinematics):
         j0_6_reverse_kin_matrix = Arm6DoF.transformation_matrix(x, y, z, yaw, pitch, roll) @ toolframe_matrix_inverse
         j0_6_negate_matrix = Arm6DoF.transformation_matrix(0, 0, -self.dh_params[5, 2], 0, 0, 0)
         spherical_wrist_matrix = j0_6_reverse_kin_matrix @ j0_6_negate_matrix
-        thetaA = np.arctan2(spherical_wrist_matrix[1, 3], spherical_wrist_matrix[0, 3])
-        # x and y transformed so that j1 angle is 0 for the following calculations
-        cThetaA, sThetaA = np.cos(thetaA), np.sin(thetaA)
-        pos_j1_zero = np.array([
-            spherical_wrist_matrix[0, 3] * cThetaA - spherical_wrist_matrix[1, 3] * sThetaA,
-            spherical_wrist_matrix[1, 3] * cThetaA + spherical_wrist_matrix[0, 3] * sThetaA,
-            spherical_wrist_matrix[2, 3]])
         # l1 = x' - dh_a1
         l1 = np.sqrt(spherical_wrist_matrix[0, 3] ** 2 + spherical_wrist_matrix[1, 3] ** 2) - self.dh_params[0, 3]
         # l4 = z' - dh_d1
-        l4 = pos_j1_zero[2] - self.dh_params[0, 2]
+        l4 = spherical_wrist_matrix[2, 3] - self.dh_params[0, 2]
         # l2 = pythagorean theorem on l1 and l4
         l2 = np.sqrt(l1 ** 2 + l4 ** 2)
         # l3 = pythagorean theorem on dh_a3 and dh_d4
         l3 = np.sqrt(self.dh_params[2, 3] ** 2 + self.dh_params[3, 2] ** 2)
+        # θA = arctan2(y, x)
+        thetaA = np.arctan2(spherical_wrist_matrix[1, 3], spherical_wrist_matrix[0, 3])
         # θB = arctan2(l1, l4)
         thetaB = np.arctan2(l1, l4)
         # θC = arccos((dh_a2^2 + l2^2 - l3^2) / (2*dh_a2*l2))
